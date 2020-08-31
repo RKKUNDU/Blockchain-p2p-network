@@ -11,8 +11,8 @@ ip, port = seed_list[0]
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((ip,int(port)))
+ip, port = socket.gethostbyname(socket.gethostname()), 27778
+s.sendall(str((ip, port)).encode('utf-8'))
 peer_list = s.recv(1024)
 print(peer_list.decode('utf-8'))
-time.sleep(2)
 s.close()
-
