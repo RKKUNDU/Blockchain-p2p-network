@@ -9,6 +9,10 @@ PORT = 27777
 
 CONNECT_TO = '192.168.56.102'
 
+# class node:
+#     def __init__(self):
+#         pass
+
 def receive_message():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
