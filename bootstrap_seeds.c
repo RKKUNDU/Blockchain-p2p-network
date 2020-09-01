@@ -9,7 +9,7 @@
 
 char** split(char*, char*);
 int is_delim(char, char*);
-void run(char*);
+void run(char *ip,char* port);
 
 int main(int argc, char** argv) {
 	FILE* fp = fopen("config.csv", "rw");
@@ -35,13 +35,13 @@ int main(int argc, char** argv) {
         int id = fork();
 
         if (id == 0) {
-            run(tokens[1]);
+	    run(tokens[0], tokens[1]);
         }
     }
 }
 
-void run(char* port) {
-    char* args[4] = {"python3", "server.py", port, NULL};
+void run(char *ip,char* port) {
+    char* args[5] = {"python3", "seed.py", ip, port, NULL};
     execvp(args[0], args);
 }
 
