@@ -37,7 +37,7 @@ def new_client(conn):
     # TODO: ENSURE IT READS COMPLETE DATA
     data = conn.recv(1024)
     ip, port = pickle.loads(data)
-    register_request((ip,port))
+    register_request((ip, port))
     # SEND PEER LIST WITH THE PEER
     msg = pickle.dumps(peer_list)
     conn.sendall(msg)
