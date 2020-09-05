@@ -47,11 +47,14 @@ def new_client(conn):
     # SEND PEER LIST WITH THE PEER
     msg = pickle.dumps(peer_list)
     conn.sendall(msg)
-    # while True:
-    # WAITING FOR DEAD MESSAGES
-    # TODO: ENSURE IT READS COMPLETE DATA
-    # data=conn.recv(1024)
-    # dead_node_message(data.decode('utf-8'))
+    while True:
+        # WAITING FOR DEAD MESSAGES
+        # TODO: ENSURE IT READS COMPLETE DATA
+        data=conn.recv(1024)
+        if len(data) <= 0:
+            continue
+        msg = pickle.loads(data)
+        dead_node_message(msg)
 
 
 def start_seed_node():
