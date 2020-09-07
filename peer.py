@@ -1,72 +1,291 @@
 #!/usr/bin/python          
 # THIS IS A PEER NODE WHOSE IP, PORT NO IS NOT FIXED.
 import time
+from datetime import datetime
 import pickle
-import socket               
+import socket
 import threading
 from initialise_ip_addresses import initialise_ip_addresses
+import hashlib
+import errno
+
+LEN = 4096
+rcvd_peer_set = set()
+connected_seeds = []
+inbound_peers = dict()
+outbound_peers = dict()
+message_list = dict()
+
+class Peer:
+    def __init__(self,conn,sv_ip,sv_port):
+        self.conn = conn
+        self.sv_ip = sv_ip
+        self.sv_port = sv_port
+        self.remote_ip, self.remote_port = conn.getpeername()
+        self.local_ip, self.local_port = conn.getsockname()
+        self.id = get_key_for_node(self.sv_ip,self.sv_port)
+        self.terminate_flag = False
+        self.pending_liveness_reply_cnt = 0
+        self.conn_lock = threading.Lock()
+        self.pending_liveness_reply_cnt_lock = threading.Lock()
 
 def bind_socket():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind((socket.gethostbyname(socket.gethostname()),0)) # PORT NO WILL BE ASSIGNED BY OS
-    myIP, myPort = s.getsockname()
-    return (s, myIP, myPort) 
+    s.bind((socket.gethostbyname(socket.gethostname()), 0))  # PORT NO WILL BE ASSIGNED BY OS
+    my_ip, my_port = s.getsockname()
+    return s, my_ip, my_port
 
+
+# ACCEPT CONNECTIONS FROM OTHER PEERS
 def start_listening(s):
     s.listen()
-    print(f"You can connect to me {myIP} {myPort} ")
-    handle_request(s)
-
-# ACCEPTING CONNECTIONS FROM OTHER PEER
-def handle_request(s):
+    print(f"You can connect to me @ {my_ip}:{my_sv_port}")
     while True:
-        conn, (ip,port) = s.accept()
-        print(f"Got Connection From IP: {ip} PORT: {port}")
-        conn.close()
+        try:
+            conn, (ip, port) = s.accept()
+            data=conn.recv(1024)
+            # Used by seed node for liveness checking
+            if data.decode("utf-8") == "test":
+                continue
+            peer_sv_socket = data.decode('utf-8').split(":")
+            peer_sv_ip = peer_sv_socket[0]
+            peer_sv_port = peer_sv_socket[1]
+            peer_key = get_key_for_node(peer_sv_ip, peer_sv_port)
+            peer = Peer(conn, peer_sv_ip, peer_sv_port)
+            inbound_peers[peer_key] = peer
+            print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
+            threading.Thread(target=handle_conn, args=[peer]).start()
+        except KeyboardInterrupt:
+            print('Server closing')
+            s.close()
+
+def get_key_for_node(ip, port):
+    return f"{ip}:{port}"
+
+
+# HANDLING CONNECTIONS FROM OTHER PEER
+def handle_conn(peer):
+    threading.Thread(target=check_liveness, args=[peer]).start()
+    while not peer.terminate_flag:
+        try:
+            data = peer.conn.recv(LEN)
+            if len(data) <= 0:
+                continue
+            msg = pickle.loads(data)
+            print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
+            parts = msg.split(":")
+            if parts[0] == "Liveness Request":
+                handle_liveness_req(peer)
+            elif parts[0] == "Liveness Reply":
+                handle_liveness_resp(peer)
+            else:
+                hashval = hashlib.sha256(msg.encode())
+                if hashval.hexdigest() in message_list.keys():
+                    continue
+                message_list[hashval.hexdigest()] = True
+                handle_gossip_msg(peer, msg)
+        except Exception as ex:
+            print(f"handle_conn : {ex}")
+
+
+def handle_liveness_req(peer):
+    msg = f"Liveness Reply:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{peer.remote_ip}:{my_ip}"
+    # print(f'\tSending: {msg}')
+    data = pickle.dumps(msg)
+    try:
+        peer.conn_lock.acquire()
+        peer.conn.sendall(data)
+    except socket.error as err:
+        if err.errno == errno.ECONNRESET or err.errno == errno.EPIPE :
+            print(err)
+    finally:
+        peer.conn_lock.release()
+
+
+def handle_liveness_resp(peer):
+    peer.pending_liveness_reply_cnt_lock.acquire()
+    peer.pending_liveness_reply_cnt -= 1
+    peer.pending_liveness_reply_cnt_lock.release()
+
+
+def handle_dead_node(peer):
+    key = peer.id
+    dead_node_ip = peer.sv_ip
+    dead_node_port = peer.sv_port
+    if key in inbound_peers:
+        inbound_peers[key].terminate_flag = True
+        inbound_peers.pop(key)
+
+    if key in outbound_peers:
+        outbound_peers[key].terminate_flag = True
+        outbound_peers.pop(key)
+    
+    for sock in connected_seeds:
+        msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:{my_sv_port}"
+        data = pickle.dumps(msg)
+        try:
+            sock.sendall(data)
+        except Exception as ex:
+            print(f"handle_dead_node : {ex}")
+
+
+def handle_gossip_msg(peer, msg):
+
+    for inbound_peer in inbound_peers.values():
+        ip = inbound_peer.remote_ip
+        port = inbound_peer.remote_port
+        if ip == peer.remote_ip and port == peer.remote_port:
+            continue
+        data = pickle.dumps(msg)
+        try:
+            inbound_peer.conn_lock.acquire()
+            inbound_peer.conn.sendall(data)
+        except Exception as ex:
+            print(f"handle_gossip_msg inbound: {ex}")
+        finally:
+            inbound_peer.conn_lock.release()
+    for outbound_peer in outbound_peers.values():
+        ip = outbound_peer.remote_ip
+        port = outbound_peer.remote_port
+        if ip == peer.remote_ip and port == peer.remote_port:
+            continue
+        data = pickle.dumps(msg)
+        try:
+            outbound_peer.conn_lock.acquire()
+            outbound_peer.conn.sendall(data)
+        except Exception as ex:
+            print(f"handle_gossip_msg outbound: {ex}")
+        finally:
+            outbound_peer.conn_lock.release()
+
 
 # FOR CONNECTING TO SEEDS
 def connect_seeds():
     # GETTING DETAILS OF THE SEEDS
-    peer = initialise_ip_addresses()
-    seed_list = peer.get_seed_list()
+    config = initialise_ip_addresses()
+    seed_list = config.get_seed_list()
     cnt = 0
-    peer_set = set()
+
     for seed in seed_list:
         cnt += 1
         ip, port = seed
-        print("Connecting to Seed-{} {} {}".format(cnt,ip,port))
+        print("Connecting to Seed-{} {} {}".format(cnt, ip, port))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip,int(port)))
-
+        s.connect((ip, int(port)))
+        connected_seeds.append(s)
         # SEND DETAILS OF LISTENING SOCKET
-        msg = pickle.dumps((myIP, myPort))
-        s.sendall(msg)
+        msg = pickle.dumps((my_ip, my_sv_port))
+        try:
+            s.sendall(msg)
+        except Exception as ex:
+            print(f"connect_seeds: {ex}")
         # NEED TO GENERALIZE FOR HIGHER BYTES OF DATA
-        msg = s.recv(1024)
-        PEER_LIST = pickle.loads(msg)
-        for peer in PEER_LIST:
-            peer_set.add(peer)
-    connect_peers(peer_set)
+        try:
+            msg = s.recv(LEN)
+        except Exception as ex:
+            print(ex)
+        peer_list = pickle.loads(msg)
+        for peer in peer_list:
+            rcvd_peer_set.add(peer)
+
 
 # FOR CONNECTING TO PEER NODES
-def connect_peers(peer_set):
+def connect_peers():
     # THE ORDERING IS NOT GUARANTEED IN SET. SO SHUFFLING IS NOT REQUIRED
     peer_cnt = 0
-    for peer in peer_set:
+    for peer in rcvd_peer_set:
         # IF ALREADY 4 PEERS HAVE BEEN CONNECTED, NO NEED TO CONNECT MORE
         if peer_cnt == 4:
             break
         ip, port = peer
         # IF PEER IS THIS PROCESS ITSELF
-        if  ip == myIP and port == myPort:
+        if ip == my_ip and port == my_sv_port:
             continue
-        peer_cnt += 1
         print(f"PEER-{peer_cnt} : IP {ip}, PORT {port}")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip, int(port)))
+        try:
+            # data=pickle.dumps((my_ip, my_sv_port))
+            data=my_ip+":"+str(my_sv_port)
+            s.connect((ip, int(port)))
+            peer_cnt += 1
+            s.sendall(data.encode('utf-8'))
+        except ConnectionRefusedError as err:
+            print(err)
+            peer_connection_refused(ip, port)
+            continue
+        key = get_key_for_node(ip, port)
+        connected_to = Peer(s, ip, port)
+        outbound_peers[key] = connected_to
+        threading.Thread(target=handle_conn, args=[connected_to]).start()
 
-s, myIP, myPort = bind_socket()
-t1 = threading.Thread(target=start_listening, args=[s], name='t1') 
+
+# Generate msgs every 5 seconds 10 times (from inception) and send to all outbound_peers
+def generate_msgs():
+    count = 0
+    while count < 10:
+        count += 1
+        msg = f"{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:Count={count}"
+        data = pickle.dumps(msg)
+        hashval = hashlib.sha256(msg.encode())
+        message_list[hashval.hexdigest()] = True
+        for outbound_peer in outbound_peers.values():
+            try:
+                outbound_peer.conn_lock.acquire()
+                outbound_peer.conn.sendall(data)
+            except Exception as ex:
+                print(f"generate_msgs : {ex}")
+            finally:
+                outbound_peer.conn_lock.release()
+        time.sleep(5)
+
+
+# Function that will continually probe a connected node for liveness
+def check_liveness(peer):
+    while not peer.terminate_flag:
+        probe_msg = f"Liveness Request:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}"
+        # print(f'\tSending Req: {probe_msg}')
+        msg = pickle.dumps(probe_msg)
+        peer.pending_liveness_reply_cnt_lock.acquire()
+        peer.pending_liveness_reply_cnt += 1
+        if peer.pending_liveness_reply_cnt == 4:
+            peer.pending_liveness_reply_cnt_lock.release()
+            handle_dead_node(peer)
+            break
+        else:
+            peer.pending_liveness_reply_cnt_lock.release()
+        try:
+            peer.conn_lock.acquire()
+            peer.conn.sendall(msg)
+        except Exception as ex:
+            print(f"check_liveness : {ex}")
+        finally:
+            peer.conn_lock.release()
+        time.sleep(13)
+
+
+def peer_connection_refused(ip,port):
+    for sock in connected_seeds:
+        msg = f"Connection refused:{ip}:{port}"
+        data = pickle.dumps(msg)
+        try:
+            sock.sendall(data)
+        except Exception as ex:
+            print(f"handle_dead_node : {ex}")
+
+
+# 1. Setup listening (server)
+s, my_ip, my_sv_port = bind_socket()
+t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.start()
+
+# 2. Parse config file, connect to seed nodes and collate peers list
 connect_seeds()
+
+# 3. Connect to 4 distinct peers
+connect_peers()
+
+# 4. Generate messages and send to outbound peers
+generate_msgs()
+
+
 t1.join()
