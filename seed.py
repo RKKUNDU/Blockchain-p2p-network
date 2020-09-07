@@ -55,7 +55,7 @@ def dead_node_message(msg):
     dead_node_ip = msg_parts[1]
     dead_node_port = msg_parts[2]
     key=dead_node_ip+":"+str(dead_node_port)
-    print(f"Received dead message from:{msg_parts[4]}:{msg_parts[5]}")
+    print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
     if msg_parts[0] == "Dead Node":
         for peer in peer_list:
             if peer[0] == dead_node_ip and peer[1]==int(dead_node_port):

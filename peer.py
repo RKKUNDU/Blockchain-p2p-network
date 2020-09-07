@@ -1,6 +1,7 @@
 #!/usr/bin/python          
 # THIS IS A PEER NODE WHOSE IP, PORT NO IS NOT FIXED.
 import time
+from datetime import datetime
 import pickle
 import socket
 import threading
@@ -88,28 +89,20 @@ def handle_conn(peer):
 
 
 def handle_liveness_req(peer):
-    msg = f"Liveness Reply:{time.time()}:{peer.remote_ip}:{my_ip}"
+    msg = f"Liveness Reply:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{peer.remote_ip}:{my_ip}"
+    # print(f'\tSending: {msg}')
     data = pickle.dumps(msg)
     try:
         peer.conn_lock.acquire()
         peer.conn.sendall(data)
-        peer.conn_lock.release()
     except socket.error as err:
         if err.errno == errno.ECONNRESET or err.errno == errno.EPIPE :
             print(err)
-            # print("Closing Connection with {peer.remote_ip} {peer.remote_port}")
-            # key = peer.id
-            # if key in inbound_peers:
-            #     inbound_peers.pop(key)
-
-            # if key in outbound_peers:
-            #     outbound_peers.pop(key)
-            # # TODO: terminate thread, free obj
-            # peer.conn.close()
+    finally:
+        peer.conn_lock.release()
 
 
 def handle_liveness_resp(peer):
-    # TODO: lock on peer
     peer.pending_liveness_reply_cnt_lock.acquire()
     peer.pending_liveness_reply_cnt -= 1
     peer.pending_liveness_reply_cnt_lock.release()
@@ -117,27 +110,24 @@ def handle_liveness_resp(peer):
 
 def handle_dead_node(peer):
     key = peer.id
-    dead_node_ip = peer.remote_ip
-    dead_node_port = peer.remote_port
+    dead_node_ip = peer.sv_ip
+    dead_node_port = peer.sv_port
     if key in inbound_peers:
         inbound_peers[key].terminate_flag = True
         inbound_peers.pop(key)
-        # TODO: free peer
 
     if key in outbound_peers:
-        inbound_peers[key].terminate_flag = True
+        outbound_peers[key].terminate_flag = True
         outbound_peers.pop(key)
-        # TODO: free peer
     
     for sock in connected_seeds:
-        msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{time.time()}:{my_ip}:{my_sv_port}"
+        msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:{my_sv_port}"
         data = pickle.dumps(msg)
         try:
-            peer.conn_lock.acquire()
-            peer.conn.sendall(data)
-            peer.conn_lock.release()
+            sock.sendall(data)
         except Exception as ex:
             print(f"handle_dead_node : {ex}")
+
 
 def handle_gossip_msg(peer, msg):
 
@@ -150,9 +140,10 @@ def handle_gossip_msg(peer, msg):
         try:
             inbound_peer.conn_lock.acquire()
             inbound_peer.conn.sendall(data)
-            inbound_peer.conn_lock.release()
         except Exception as ex:
             print(f"handle_gossip_msg inbound: {ex}")
+        finally:
+            inbound_peer.conn_lock.release()
     for outbound_peer in outbound_peers.values():
         ip = outbound_peer.remote_ip
         port = outbound_peer.remote_port
@@ -162,9 +153,10 @@ def handle_gossip_msg(peer, msg):
         try:
             outbound_peer.conn_lock.acquire()
             outbound_peer.conn.sendall(data)
-            outbound_peer.conn_lock.release()
         except Exception as ex:
             print(f"handle_gossip_msg outbound: {ex}")
+        finally:
+            outbound_peer.conn_lock.release()
 
 
 # FOR CONNECTING TO SEEDS
@@ -232,7 +224,7 @@ def generate_msgs():
     count = 0
     while count < 10:
         count += 1
-        msg = f"{time.time()}:{my_ip}:Count={count}"
+        msg = f"{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:Count={count}"
         data = pickle.dumps(msg)
         hashval = hashlib.sha256(msg.encode())
         message_list[hashval.hexdigest()] = True
@@ -240,16 +232,18 @@ def generate_msgs():
             try:
                 outbound_peer.conn_lock.acquire()
                 outbound_peer.conn.sendall(data)
-                outbound_peer.conn_lock.release()
             except Exception as ex:
                 print(f"generate_msgs : {ex}")
+            finally:
+                outbound_peer.conn_lock.release()
         time.sleep(5)
 
 
 # Function that will continually probe a connected node for liveness
 def check_liveness(peer):
     while not peer.terminate_flag:
-        probe_msg = f"Liveness Request:{time.time()}:{my_ip}"
+        probe_msg = f"Liveness Request:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}"
+        # print(f'\tSending Req: {probe_msg}')
         msg = pickle.dumps(probe_msg)
         peer.pending_liveness_reply_cnt_lock.acquire()
         peer.pending_liveness_reply_cnt += 1
@@ -257,13 +251,15 @@ def check_liveness(peer):
             peer.pending_liveness_reply_cnt_lock.release()
             handle_dead_node(peer)
             break
-        peer.pending_liveness_reply_cnt_lock.release()
+        else:
+            peer.pending_liveness_reply_cnt_lock.release()
         try:
             peer.conn_lock.acquire()
             peer.conn.sendall(msg)
-            peer.conn_lock.release()
         except Exception as ex:
             print(f"check_liveness : {ex}")
+        finally:
+            peer.conn_lock.release()
         time.sleep(13)
 
 
