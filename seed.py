@@ -102,7 +102,7 @@ def start_seed_node():
         s.listen()
         while True:
             conn, (ip, port) = s.accept()
-            print(f"Got a new connection from {ip}:{port}")
+            print(f"{myIP}:{myPort}:) Got a new connection from {ip}:{port}")
             
             pthread = threading.Thread(target=new_client, args=[conn])
             pthread.start()
