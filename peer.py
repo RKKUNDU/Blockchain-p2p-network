@@ -8,6 +8,8 @@ import threading
 from initialise_ip_addresses import initialise_ip_addresses
 import hashlib
 import errno
+import math
+import random
 
 LEN = 4096
 rcvd_peer_set = set()
@@ -166,7 +168,9 @@ def connect_seeds():
     config = initialise_ip_addresses()
     seed_list = config.get_seed_list()
     cnt = 0
-
+    n = len(seed_list)
+    seeds_to_connect = math.floor(n/2)+1
+    seed_list = random.sample(seed_list, seeds_to_connect)
     for seed in seed_list:
         cnt += 1
         ip, port = seed
