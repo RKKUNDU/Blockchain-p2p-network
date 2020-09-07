@@ -7,7 +7,7 @@ import socket
 import threading
 from initialise_ip_addresses import initialise_ip_addresses
 import hashlib
-
+import errno
 
 LEN = 4096
 rcvd_peer_set = set()
