@@ -33,7 +33,8 @@ def check_if_node_alive(ip, port):
         conn = peer_map[key]
         while i<3:
             try:
-                conn.sendall(b"test")
+                msg=pickle.dumps("test")
+                conn.sendall(msg)
             except Exception as ex:
                 print(f"Testing if node alive: count ={i+1}")
                 time.sleep(2)

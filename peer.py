@@ -44,10 +44,11 @@ def start_listening(s):
         try:
             conn, (ip, port) = s.accept()
             data=conn.recv(1024)
+            msg=pickle.loads(data)
             # Used by seed node for liveness checking
-            if data.decode("utf-8") == "test":
+            if msg == "test":
                 continue
-            peer_sv_socket = data.decode('utf-8').split(":")
+            peer_sv_socket = msg.split(":")
             peer_sv_ip = peer_sv_socket[0]
             peer_sv_port = peer_sv_socket[1]
             peer_key = get_key_for_node(peer_sv_ip, peer_sv_port)
@@ -208,7 +209,8 @@ def connect_peers():
             data=my_ip+":"+str(my_sv_port)
             s.connect((ip, int(port)))
             peer_cnt += 1
-            s.sendall(data.encode('utf-8'))
+            data=pickle.dumps(data)
+            s.sendall(data)
         except ConnectionRefusedError as err:
             print(err)
             peer_connection_refused(ip, port)
