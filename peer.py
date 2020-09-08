@@ -169,7 +169,6 @@ def handle_dead_node(peer):
         data = pickle.dumps(msg)
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         try:
-            data = data + data
             sock.sendall(data)
         except Exception as ex:
             print(f"handle_dead_node : {ex}")
