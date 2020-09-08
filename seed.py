@@ -10,6 +10,7 @@ import threading
 import pickle
 import sys
 
+HEADER_SIZE = 10
 # IF IP, PORT ARE NOT SUPPLIED
 if len(sys.argv) != 3:
     exit(1)
@@ -33,8 +34,9 @@ def check_if_node_alive(ip, port):
         conn = peer_map[key]
         while i<3:
             try:
-                msg=pickle.dumps("test")
-                conn.sendall(msg)
+                data = pickle.dumps("test")
+                data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+                conn.sendall(data)
             except Exception as ex:
                 print(f"Testing if node alive: count ={i+1}")
                 time.sleep(2)
@@ -52,7 +54,7 @@ def dead_node_message(msg):
     dead_node_ip = msg_parts[1]
     dead_node_port = msg_parts[2]
     key=dead_node_ip+":"+str(dead_node_port)
-    print(f"Received dead message from:{msg_parts[4]}:{msg_parts[5]}")
+    print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
     if msg_parts[0] == "Dead Node":
         for peer in peer_list:
             if peer[0] == dead_node_ip and peer[1]==int(dead_node_port):
@@ -70,9 +72,16 @@ def dead_node_message(msg):
 
 def new_client(conn):
     # RECEIVE LISTENING SOCKET DETAILS OF THE PEER
-    # TODO: ENSURE IT READS COMPLETE DATA
     data = conn.recv(1024)
-    ip, port = pickle.loads(data)
+    if len(data) == 0:
+        return
+    msglen = int(data[:HEADER_SIZE].decode('utf-8'))
+    msg = data[HEADER_SIZE:]
+    while len(msg)  < msglen:
+        data = conn.recv(msglen-len(msg))
+        msg += data
+
+    ip, port = pickle.loads(msg)
     lock.acquire()
     register_request((ip, port))
     lock.release()
@@ -80,15 +89,22 @@ def new_client(conn):
     peer_map[key]=conn
     print(f"Peer list: {peer_list}")
     # SEND PEER LIST WITH THE PEER
-    msg = pickle.dumps(peer_list)
-    conn.sendall(msg)
+    data = pickle.dumps(peer_list)
+    data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+    conn.sendall(data)
     while True:
         # WAITING FOR DEAD MESSAGES
-        # TODO: ENSURE IT READS COMPLETE DATA
-        data=conn.recv(1024)
-        if len(data) <= 0:
+        data = conn.recv(1024)
+        if len(data) == 0:
             break
-        msg = pickle.loads(data)
+        msglen = int(data[:HEADER_SIZE].decode('utf-8'))
+        msg = data[HEADER_SIZE:]
+        while len(msg)  < msglen:
+            data = conn.recv(msglen-len(msg))
+            msg += data
+
+        msg = pickle.loads(msg)
+
         msg_parts=msg.split(":")
         if msg_parts[0]=="Connection refused":
             lock.acquire()
