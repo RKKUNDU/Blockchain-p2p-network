@@ -99,6 +99,23 @@ def new_client(conn):
             break
         msglen = int(data[:HEADER_SIZE].decode('utf-8'))
         msg = data[HEADER_SIZE:]
+
+        while len(msg) > msglen:
+                part = msg[:msglen]
+                message = pickle.loads(part)
+                msg_parts = message.split(":")
+                if msg_parts[0]=="Connection refused":
+                    lock.acquire()
+                    check_if_node_alive(msg_parts[1], msg_parts[2])
+                    lock.release()
+                elif msg_parts[0]=="Dead Node":
+                    dead_node_message(message)
+                
+                data = msg[msglen:]
+                msglen = int(data[:HEADER_SIZE].decode('utf-8'))
+                msg = data[HEADER_SIZE:]
+
+
         while len(msg)  < msglen:
             data = conn.recv(msglen-len(msg))
             msg += data

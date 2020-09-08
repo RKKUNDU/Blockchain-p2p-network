@@ -46,7 +46,7 @@ def start_listening(s):
     while True:
         try:
             conn, (ip, port) = s.accept()
-            data = conn.recv(14)
+            data = conn.recv(LEN)
             if len(data) == 0:
                 break
             msglen = int(data[:HEADER_SIZE].decode('utf-8'))
@@ -86,10 +86,31 @@ def handle_conn(peer):
             data = peer.conn.recv(LEN)
             if len(data) == 0:
                 break
-            
+           
             msglen = int(data[:HEADER_SIZE].decode('utf-8'))
             msg = data[HEADER_SIZE:]
-            while len(msg)  < msglen:
+            
+            while len(msg) > msglen:
+                part = msg[:msglen]
+                message = pickle.loads(part)
+                print(f"{message}, from {peer.remote_ip}:{peer.remote_port}")
+                parts = message.split(":")
+                if parts[0] == "Liveness Request":
+                    handle_liveness_req(peer)
+                elif parts[0] == "Liveness Reply":
+                    handle_liveness_resp(peer)
+                else:
+                    hashval = hashlib.sha256(message.encode())
+                    if hashval.hexdigest() in message_list.keys():
+                        continue
+                    message_list[hashval.hexdigest()] = True
+                    handle_gossip_msg(peer, message)
+
+                data = msg[msglen:]
+                msglen = int(data[:HEADER_SIZE].decode('utf-8'))
+                msg = data[HEADER_SIZE:]
+
+            while len(msg) < msglen:
                 data = conn.recv(msglen-len(msg))
                 msg += data
 
@@ -148,6 +169,7 @@ def handle_dead_node(peer):
         data = pickle.dumps(msg)
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         try:
+            data = data + data
             sock.sendall(data)
         except Exception as ex:
             print(f"handle_dead_node : {ex}")
@@ -208,7 +230,6 @@ def connect_seeds():
             s.sendall(data)
         except Exception as ex:
             print(f"connect_seeds: {ex}")
-        # NEED TO GENERALIZE FOR HIGHER BYTES OF DATA
         try:
             data = s.recv(LEN)
             if len(data) == 0:
@@ -330,6 +351,5 @@ connect_peers()
 
 # 4. Generate messages and send to outbound peers
 generate_msgs()
-
 
 t1.join()
