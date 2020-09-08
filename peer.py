@@ -10,6 +10,7 @@ import hashlib
 import errno
 import math
 import random
+import os
 
 HEADER_SIZE = 10
 LEN = 4096
@@ -93,7 +94,7 @@ def handle_conn(peer):
             while len(msg) > msglen:
                 part = msg[:msglen]
                 message = pickle.loads(part)
-                print(f"{message}, from {peer.remote_ip}:{peer.remote_port}")
+                # print(f"{message}, from {peer.remote_ip}:{peer.remote_port}")
                 parts = message.split(":")
                 if parts[0] == "Liveness Request":
                     handle_liveness_req(peer)
@@ -116,7 +117,7 @@ def handle_conn(peer):
                 msg += data
 
             msg = pickle.loads(msg)
-            print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
+            # print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
             parts = msg.split(":")
             if parts[0] == "Liveness Request":
                 handle_liveness_req(peer)
@@ -165,10 +166,12 @@ def handle_dead_node(peer):
         outbound_peers[key].terminate_flag = True
         outbound_peers.pop(key)
     
+    msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:{my_sv_port}"
+    data = pickle.dumps(msg)
+    write_to_file(msg)
+    print(msg)
+    data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
     for sock in connected_seeds:
-        msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:{my_sv_port}"
-        data = pickle.dumps(msg)
-        data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         try:
             sock.sendall(data)
         except Exception as ex:
@@ -176,7 +179,8 @@ def handle_dead_node(peer):
 
 
 def handle_gossip_msg(peer, msg):
-
+    write_to_file(msg)
+    print(msg)
     for inbound_peer in inbound_peers.values():
         ip = inbound_peer.remote_ip
         port = inbound_peer.remote_port
@@ -205,6 +209,8 @@ def handle_gossip_msg(peer, msg):
             print(f"handle_gossip_msg outbound: {ex}")
         finally:
             outbound_peer.conn_lock.release()
+
+
 
 
 # FOR CONNECTING TO SEEDS
@@ -241,6 +247,8 @@ def connect_seeds():
                 msg += data
 
             peer_list = pickle.loads(msg)
+            write_to_file(repr(peer_list))
+            print(repr(peer_list))
 
         except Exception as ex:
             print(ex)
@@ -248,6 +256,12 @@ def connect_seeds():
         print(f'{peer_list}')
         for peer in peer_list:
             rcvd_peer_set.add(peer)
+
+
+def write_to_file(line):
+    file.write(line + "\n")
+    file.flush()
+    os.fsync(file.fileno())
 
 
 # FOR CONNECTING TO PEER NODES
@@ -343,13 +357,17 @@ s, my_ip, my_sv_port = bind_socket()
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.start()
 
-# 2. Parse config file, connect to seed nodes and collate peers list
+# 2. Open file
+file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
+
+# 3. Parse config file, connect to seed nodes and collate peers list
 connect_seeds()
 
-# 3. Connect to 4 distinct peers
+# 4. Connect to 4 distinct peers
 connect_peers()
 
-# 4. Generate messages and send to outbound peers
+# 5. Generate messages and send to outbound peers
 generate_msgs()
 
 t1.join()
+file.close()
