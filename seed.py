@@ -23,7 +23,9 @@ peer_map=dict()
 lock = threading.Lock()
 
 def register_request(socket_pair):
+    lock.acquire()
     peer_list.add(socket_pair)
+    lock.release()
 
 def check_if_node_alive(ip, port):
     i=0
@@ -39,6 +41,8 @@ def check_if_node_alive(ip, port):
                 print(f"Testing if node alive: count ={i+1}")
                 time.sleep(2)
                 i+=1
+            finally:
+                lock.release()
         if i==3:
             peer_list.remove((ip,int(port)))
             peer_map.pop(key)
@@ -52,15 +56,17 @@ def dead_node_message(msg):
     dead_node_ip = msg_parts[1]
     dead_node_port = msg_parts[2]
     key=dead_node_ip+":"+str(dead_node_port)
-    print(f"Received dead message from:{msg_parts[4]}:{msg_parts[5]}")
+    print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
     if msg_parts[0] == "Dead Node":
         for peer in peer_list:
             if peer[0] == dead_node_ip and peer[1]==int(dead_node_port):
                 # TODO: SYNCHRONIZE THIS PART IF MULTITHREADING IS USED
                 # lock.acquire()
                 try:
+                    lock.acquire()
                     peer_list.remove(peer)
                     peer_map.pop(key)
+                    lock.release()
                 except Exception as identifier:
                     pass
                 # lock.release()
@@ -73,9 +79,7 @@ def new_client(conn):
     # TODO: ENSURE IT READS COMPLETE DATA
     data = conn.recv(1024)
     ip, port = pickle.loads(data)
-    lock.acquire()
     register_request((ip, port))
-    lock.release()
     key=ip+":"+str(port)
     peer_map[key]=conn
     print(f"Peer list: {peer_list}")
