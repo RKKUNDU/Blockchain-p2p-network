@@ -9,6 +9,7 @@ import socket
 import threading
 import pickle
 import sys
+import os
 
 HEADER_SIZE = 10
 # IF IP, PORT ARE NOT SUPPLIED
@@ -38,23 +39,26 @@ def check_if_node_alive(ip, port):
                 data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
                 conn.sendall(data)
             except Exception as ex:
-                print(f"Testing if node alive: count ={i+1}")
+                # print(f"Testing if node alive: count ={i+1}")
                 time.sleep(2)
                 i+=1
         if i==3:
             peer_list.remove((ip,int(port)))
             peer_map.pop(key)
-    print("Peer list:",peer_list)
+    # print("Peer list:",peer_list)
 
 # REMOVE THE DEAD NODE FROM PEER_LIST
 def dead_node_message(msg):
-    
-    print(msg)
+    # print(msg)
     msg_parts = msg.split(":")
     dead_node_ip = msg_parts[1]
     dead_node_port = msg_parts[2]
     key=dead_node_ip+":"+str(dead_node_port)
-    print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
+    # print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
+    
+    write_to_file(msg)
+    print(msg)
+
     if msg_parts[0] == "Dead Node":
         for peer in peer_list:
             if peer[0] == dead_node_ip and peer[1]==int(dead_node_port):
@@ -67,7 +71,7 @@ def dead_node_message(msg):
                     pass
                 # lock.release()
                 break
-    print("Peer list:",peer_list)
+    # print("Peer list:",peer_list)
 
 
 def new_client(conn):
@@ -87,7 +91,7 @@ def new_client(conn):
     lock.release()
     key=ip+":"+str(port)
     peer_map[key]=conn
-    print(f"Peer list: {peer_list}")
+    # print(f"Peer list: {peer_list}")
     # SEND PEER LIST WITH THE PEER
     data = pickle.dumps(peer_list)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -139,11 +143,28 @@ def start_seed_node():
         s.listen()
         while True:
             conn, (ip, port) = s.accept()
-            print(f"{myIP}:{myPort} Got a new connection from {ip}:{port}")            
+            # print(f"{myIP}:{myPort} Got a new connection from {ip}:{port}")
+            msg = f"Got a new connection from {ip}:{port}"   
+            write_to_file(msg)
+            print(msg)
+
             pthread = threading.Thread(target=new_client, args=[conn])
             pthread.start()
 
 
+def write_to_file(line):
+    file.write(line + "\n")
+    file.flush()
+    os.fsync(file.fileno())
+
+
+def get_key_for_node(ip, port):
+    return f"{ip}:{port}"
+
+
+file = open(f"seed_output_{get_key_for_node(myIP, myPort)}", "a+")
+
 t1 = threading.Thread(target=start_seed_node, name='t1')
 t1.start()
 t1.join()
+file.close()
