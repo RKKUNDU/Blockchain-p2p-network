@@ -57,7 +57,7 @@ def start_listening(s):
                 msg += data
 
             msg = pickle.loads(msg)
-            print(f'{msg}')
+            # print(f'{msg}')
             
             # Used by seed node for liveness checking
             if msg == "test":
@@ -102,16 +102,17 @@ def handle_conn(peer):
                 else:
                     hashval = hashlib.sha256(message.encode())
                     if hashval.hexdigest() in message_list.keys():
-                        continue
-                    message_list[hashval.hexdigest()] = True
-                    handle_gossip_msg(peer, message)
+                        pass
+                    else:
+                        message_list[hashval.hexdigest()] = True
+                        handle_gossip_msg(peer, message)
 
                 data = msg[msglen:]
                 msglen = int(data[:HEADER_SIZE].decode('utf-8'))
                 msg = data[HEADER_SIZE:]
 
             while len(msg) < msglen:
-                data = conn.recv(msglen-len(msg))
+                data = peer.conn.recv(msglen-len(msg))
                 msg += data
 
             msg = pickle.loads(msg)
@@ -236,7 +237,7 @@ def connect_seeds():
             msglen = int(data[:HEADER_SIZE].decode('utf-8'))
             msg = data[HEADER_SIZE:]
             while len(msg)  < msglen:
-                data = conn.recv(msglen-len(msg))
+                data = peer.conn.recv(msglen-len(msg))
                 msg += data
 
             peer_list = pickle.loads(msg)
