@@ -6,7 +6,7 @@
 * ### Sending a dead node message to seed node if a peer is non-responsive
 * ### Seed nodes maintain consistency of peer lists
 
-### Project contrbutors
+### Project Contributors
 Name | Roll Number
 --- | --- | 
 Rohit Kundu | 203050030
