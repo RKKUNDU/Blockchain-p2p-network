@@ -1,10 +1,10 @@
 # Peer to peer network
 ## This is a multithreaded p2p network, which has some basic functionalities: 
-* ## Seed nodes which have list of peers in the network
-* ## Peers which check the liveness of it's adjacent peers
-* ## Peer produces gossip messages to the network upon arrival
-* ## Sending a dead node message to seed node if a peer is non-responsive
-* ## Seed nodes maintain consistency of peer lists
+* ### Seed nodes which have list of peers in the network
+* ### Peers which check the liveness of it's adjacent peers
+* ### Peer produces gossip messages to the network upon arrival
+* ### Sending a dead node message to seed node if a peer is non-responsive
+* ### Seed nodes maintain consistency of peer lists
 
 ### Project contrbutors
 Name | Roll Number
