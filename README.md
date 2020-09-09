@@ -34,3 +34,4 @@ Seperate output files are generated for every peer and every seed.
 2) https://www.geeksforgeeks.org/socket-programming-python/
 3) https://stackoverflow.com/questions/23828264/how-to-make-a-simple-multithreaded-socket-server-in-python-that-remembers-client
 4) https://www.geeksforgeeks.org/multithreading-python-set-1/
+5) https://pythonprogramming.net/pickle-objects-sockets-tutorial-python-3/
