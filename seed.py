@@ -24,11 +24,16 @@ peer_map=dict()
 
 lock = threading.Lock()
 
+
+#Thread safe addition to socket pair list
 def register_request(socket_pair):
     lock.acquire()
     peer_list.add(socket_pair)
     lock.release()
 
+
+#When the seed node gets a message saying "Connection refused"
+# it checks whether that node is still alive and pings it thrice. 
 def check_if_node_alive(ip, port):
     i=0
     key=ip+":"+str(port)
@@ -49,23 +54,19 @@ def check_if_node_alive(ip, port):
             peer_map.pop(key)
     # print("Peer list:",peer_list)
 
-# REMOVE THE DEAD NODE FROM PEER_LIST
+# REMOVES THE DEAD NODE FROM PEER_LIST
 def dead_node_message(msg):
-    # print(msg)
     msg_parts = msg.split(":")
     dead_node_ip = msg_parts[1]
     dead_node_port = msg_parts[2]
     key=dead_node_ip+":"+str(dead_node_port)
-    # print(f"Received dead message from:{msg_parts[len(msg_parts)-2]}:{msg_parts[len(msg_parts)-1]}")
-    
-    write_to_file(msg)
+    msg1="Receiving Dead Node Message: "+msg
+    write_to_file(msg1)
     print(msg)
 
     if msg_parts[0] == "Dead Node":
         for peer in peer_list:
             if peer[0] == dead_node_ip and peer[1]==int(dead_node_port):
-                # TODO: SYNCHRONIZE THIS PART IF MULTITHREADING IS USED
-                # lock.acquire()
                 try:
                     lock.acquire()
                     peer_list.remove(peer)
@@ -73,11 +74,10 @@ def dead_node_message(msg):
                     lock.release()
                 except Exception as identifier:
                     pass
-                # lock.release()
                 break
-    # print("Peer list:",peer_list)
 
-
+#Once we receive a new connection, a new thread is spawned and this function handles
+# the new incoming connection
 def new_client(conn):
     # RECEIVE LISTENING SOCKET DETAILS OF THE PEER
     data = conn.recv(1024)
@@ -93,7 +93,6 @@ def new_client(conn):
     register_request((ip, port))
     key=ip+":"+str(port)
     peer_map[key]=conn
-    # print(f"Peer list: {peer_list}")
     # SEND PEER LIST WITH THE PEER
     data = pickle.dumps(peer_list)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -101,11 +100,13 @@ def new_client(conn):
     while True:
         # WAITING FOR DEAD MESSAGES
         data = conn.recv(1024)
+        #The following lines detects termination of connection and exit the thread
         if len(data) == 0:
             break
         msglen = int(data[:HEADER_SIZE].decode('utf-8'))
         msg = data[HEADER_SIZE:]
-
+        # The seed can receive two types of messages from the peers
+        # to keep the peer list consistent, dead node and connection refused. 
         while len(msg) > msglen:
                 part = msg[:msglen]
                 message = pickle.loads(part)
@@ -137,15 +138,15 @@ def new_client(conn):
             dead_node_message(msg)
         
 
-
+#This is the entry point of the seed node.
 def start_seed_node():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print(f"Connect to me IP: {myIP} PORT: {myPort}")
         s.bind((myIP, myPort))
         s.listen()
         while True:
+            #Starts to accept connections from peers
             conn, (ip, port) = s.accept()
-            # print(f"{myIP}:{myPort} Got a new connection from {ip}:{port}")
             msg = f"Got a new connection from {ip}:{port}"   
             write_to_file(msg)
             print(msg)
@@ -154,18 +155,21 @@ def start_seed_node():
             pthread.start()
 
 
+# Function to write the logs to an output file.
 def write_to_file(line):
     file.write(line + "\n")
     file.flush()
     os.fsync(file.fileno())
 
 
+#Utility function for generating a key to store/access dict values
 def get_key_for_node(ip, port):
     return f"{ip}:{port}"
 
-
+#Opens the file to which we write the logs of the seed.
 file = open(f"seed_output_{get_key_for_node(myIP, myPort)}", "a+")
 
+#Starts the thread which bootstraps the seed.
 t1 = threading.Thread(target=start_seed_node, name='t1')
 t1.start()
 t1.join()
