@@ -15,6 +15,13 @@ Output files (per peer/seed):
 1) seed_output_*
 2) peer_output_*
 
+Mentions on requirement understanding:
+"after it connects to selected neighbors after registration"
+1) Gossip messages by a peer are generated for the first 50 seconds (with a time interval of 5 seconds) after connecting to selected peers(if any) and sent to all neighbors. After 50 seconds message generation is stopped but gossiping(broadcasting messages received from other peer) continues.
+2) Gossip count starts from 1 to 10
+3) Timestamp used "yyyy-MM-dd-HH:mm:ss.microsecond"
+
+
 References:
 1) https://docs.python.org/3/library/socket.html
 2) https://www.geeksforgeeks.org/socket-programming-python/

@@ -305,6 +305,8 @@ def connect_seeds():
         # print(f'{peer_list}')
         for peer in peer_list:
             rcvd_peer_set.add(peer)
+    print("Received peer list: ",rcvd_peer_set)
+    write_to_file(repr(peer_list))
 
 # Function to write the logs to an output file.
 def write_to_file(line):
