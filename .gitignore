@@ -6,5 +6,6 @@ bootstrap_seeds
 demo*
 temp
 recvall.py
+time.py
 peer_output*
 seed_output*

@@ -102,9 +102,9 @@ def handle_conn(peer):
                 #Received message is split and depending on the message further processing happens.
                 parts = message.split(":")
                 if parts[0] == "Liveness Request":
-                    handle_liveness_req(peer)
+                    handle_liveness_req(peer, message)
                 elif parts[0] == "Liveness Reply":
-                    handle_liveness_resp(peer)
+                    handle_liveness_resp(peer, message)
                 else:
                     #Received gossip message is hashed into a Message list
                     hashval = hashlib.sha256(message.encode())
@@ -126,9 +126,9 @@ def handle_conn(peer):
             # print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
             parts = msg.split(":")
             if parts[0] == "Liveness Request":
-                handle_liveness_req(peer)
+                handle_liveness_req(peer, msg)
             elif parts[0] == "Liveness Reply":
-                handle_liveness_resp(peer)
+                handle_liveness_resp(peer, msg)
             else:
                 #Received gossip message is hashed into a Message list
                 hashval = hashlib.sha256(msg.encode())
@@ -141,8 +141,11 @@ def handle_conn(peer):
             # print(f"handle_conn : {ex}")
 
 #Once we receive a liveness request from any of the adjacent peers, this function handles that and sends a directed liveness reply.
-def handle_liveness_req(peer):
-    msg = f"Liveness Reply:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{peer.remote_ip}:{my_ip}"
+def handle_liveness_req(peer, recvd_msg):
+    parts = recvd_msg.split(":")
+    sender_time = parts[1] + ":" + parts[2] + ":" + parts[3]
+    # print(sender_time)
+    msg = f"Liveness Reply:{sender_time}:{peer.remote_ip}:{my_ip}"
     # print(f'\tSending: {msg}')
     data = pickle.dumps(msg)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -159,10 +162,33 @@ def handle_liveness_req(peer):
         peer.conn_lock.release()
 
 #When we get a liveness reply/response from the peer whom we requested a livness request, we handle that
-def handle_liveness_resp(peer):
-    peer.pending_liveness_reply_cnt_lock.acquire()
-    peer.pending_liveness_reply_cnt -= 1
-    peer.pending_liveness_reply_cnt_lock.release()
+def handle_liveness_resp(peer, recvd_msg):
+    parts = recvd_msg.split(":")
+    sender_time = parts[1] + ":" + parts[2] + ":" + parts[3]
+    now = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+    time1 = sender_time.replace('-',':').split(":")
+    time2 = now.replace('-',':').split(":")
+    yr1, m1, d1, hr1, mnt1, sec1 = int(time1[0]), int(time1[1]), int(time1[2]), int(time1[3]), int(time1[4]), int(time1[5])
+    yr2, m2, d2, hr2, mnt2, sec2 = int(time2[0]), int(time2[1]), int(time2[2]), int(time2[3]), int(time2[4]), int(time2[5])
+    diff = datetime(yr1, m1, d1, hr1, mnt1, sec1) - datetime(yr2, m2, d2, hr2, mnt2, sec2)
+    diff = diff.total_seconds()
+
+    if diff < 13:
+        peer.pending_liveness_reply_cnt_lock.acquire()
+        peer.pending_liveness_reply_cnt = 0
+        peer.pending_liveness_reply_cnt_lock.release()
+    elif diff < 26:
+        # IF REPLY OF LAST SENT MSG IS RECEIVED, THEN LET THE COUNT BE 0 OTHERWISE MAKE THE COUNT 1 
+        peer.pending_liveness_reply_cnt_lock.acquire()
+        peer.pending_liveness_reply_cnt = min(peer.pending_liveness_reply_cnt,1)
+        peer.pending_liveness_reply_cnt_lock.release()
+    elif diff < 39:
+        peer.pending_liveness_reply_cnt_lock.acquire()
+        peer.pending_liveness_reply_cnt = min(peer.pending_liveness_reply_cnt,2)
+        peer.pending_liveness_reply_cnt_lock.release()
+    else:
+        pass
+
 
 #This function is called when a node is non-responsive upon 3 liveness requests.
 def handle_dead_node(peer):
