@@ -20,7 +20,9 @@ Mentions on requirement understanding:
 1) Gossip messages by a peer are generated for the first 50 seconds (with a time interval of 5 seconds) after connecting to selected peers(if any) and sent to all neighbors. After 50 seconds message generation is stopped but gossiping(broadcasting messages received from other peer) continues.
 2) Gossip count starts from 1 to 10
 3) Timestamp used "yyyy-MM-dd-HH:mm:ss.microsecond"
-
+4) Gossip message written to the peer output file is "<Received gossip from:> <local timestamp> <sender_IP> <message>"
+5) Dead node message written to the seed output file "<Receiving Dead Node Message:> <Dead node message>"
+5) Dead node message written to the peer output file "<Reporting Dead Node Message:> <Dead node message>"
 
 References:
 1) https://docs.python.org/3/library/socket.html

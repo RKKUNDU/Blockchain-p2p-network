@@ -219,7 +219,7 @@ def handle_dead_node(peer):
 
 #When the message received in handle_conn function is a gossip message, we forward the message to all adjacent peers if required.
 def handle_gossip_msg(peer, msg):
-    msg1="Received gossip from:"+str(peer.sv_ip)+":"+str(peer.sv_port)+" "+str(msg)
+    msg1="Received gossip from: "+datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')+" "+str(peer.sv_ip)+" "+str(msg)
     write_to_file(msg1)
     print(msg)
     # print(f"Received gossip from:{peer.sv_ip}:{peer.sv_port} {msg}")
