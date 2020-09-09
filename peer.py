@@ -165,12 +165,12 @@ def handle_liveness_req(peer, recvd_msg):
 def handle_liveness_resp(peer, recvd_msg):
     parts = recvd_msg.split(":")
     sender_time = parts[1] + ":" + parts[2] + ":" + parts[3]
-    now = datetime.today().strftime('%Y-%m-%d-%H:%M:%S')
+    now = datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')
     time1 = sender_time.replace('-',':').split(":")
     time2 = now.replace('-',':').split(":")
-    yr1, m1, d1, hr1, mnt1, sec1 = int(time1[0]), int(time1[1]), int(time1[2]), int(time1[3]), int(time1[4]), int(time1[5])
-    yr2, m2, d2, hr2, mnt2, sec2 = int(time2[0]), int(time2[1]), int(time2[2]), int(time2[3]), int(time2[4]), int(time2[5])
-    diff = datetime(yr1, m1, d1, hr1, mnt1, sec1) - datetime(yr2, m2, d2, hr2, mnt2, sec2)
+    yr1, m1, d1, hr1, mnt1, sec1, micro1 = int(time1[0]), int(time1[1]), int(time1[2]), int(time1[3]), int(time1[4]), int(time1[5].split(".")[0]), int(time1[5].split(".")[1])
+    yr2, m2, d2, hr2, mnt2, sec2, micro2 = int(time2[0]), int(time2[1]), int(time2[2]), int(time2[3]), int(time2[4]), int(time2[5].split(".")[0]),  int(time2[5].split(".")[1])
+    diff = datetime(yr1, m1, d1, hr1, mnt1, sec1, micro1) - datetime(yr2, m2, d2, hr2, mnt2, sec2, micro2)
     diff = diff.total_seconds()
 
     if diff < 13:
@@ -203,7 +203,7 @@ def handle_dead_node(peer):
         outbound_peers[key].terminate_flag = True
         outbound_peers.pop(key)
     
-    msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}"
+    msg = f"Dead Node:{dead_node_ip}:{dead_node_port}:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')}:{my_ip}"
     data = pickle.dumps(msg)
     msg1 = "Reporting Dead Node Message: "+ msg
     write_to_file(msg1)
@@ -349,7 +349,7 @@ def generate_msgs():
     count = 0
     while count < 10:
         count += 1
-        msg = f"{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}:Count={count}"
+        msg = f"{datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')}:{my_ip}:Count={count}"
         data = pickle.dumps(msg)
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         hashval = hashlib.sha256(msg.encode())
@@ -379,7 +379,7 @@ def generate_msgs():
 # Function that will continually probe a connected node for liveness
 def check_liveness(peer):
     while not peer.terminate_flag:
-        probe_msg = f"Liveness Request:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S')}:{my_ip}"
+        probe_msg = f"Liveness Request:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')}:{my_ip}"
         # print(f'\tSending Req: {probe_msg}')
         data = pickle.dumps(probe_msg)
         peer.pending_liveness_reply_cnt_lock.acquire()
