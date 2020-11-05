@@ -35,3 +35,6 @@ Seperate output files are generated for every peer and every seed.
 3) https://stackoverflow.com/questions/23828264/how-to-make-a-simple-multithreaded-socket-server-in-python-that-remembers-client
 4) https://www.geeksforgeeks.org/multithreading-python-set-1/
 5) https://pythonprogramming.net/pickle-objects-sockets-tutorial-python-3/
+
+### Tip
+Use <i>pgrep -f python | xargs kill -9</i> to kill all currently running python processes (free address)

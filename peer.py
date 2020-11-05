@@ -1,16 +1,11 @@
 #!/usr/bin/python          
 # THIS IS A PEER NODE WHOSE IP, PORT NO IS NOT FIXED.
-import time
+
 from datetime import datetime
-import pickle
-import socket
-import threading
+import pickle, socket, threading, time
 from initialise_ip_addresses import initialise_ip_addresses
-import hashlib
-import errno
-import math
-import random
-import os
+import hashlib, errno, math, random, os, string
+from block import Block
 
 
 #Inititalising the sets and variables used by this peer node.
@@ -21,6 +16,7 @@ connected_seeds = []
 inbound_peers = dict()
 outbound_peers = dict()
 message_list = dict()
+GENESIS_BLOCK_HASH = '9e1c'
 
 #This is a peer object which contains all the information required to communicate with the other peers.
 class Peer:
@@ -305,8 +301,32 @@ def connect_seeds():
         # print(f'{peer_list}')
         for peer in peer_list:
             rcvd_peer_set.add(peer)
-    print("Received peer list: ",rcvd_peer_set)
+
+    # If this peer is the first node in the blockchain network, then generate the genesis block
+    if len(rcvd_peer_set) == 1:
+        genesis_block = generate_genesis_block()
+        print(str(genesis_block))
+        # TODO: Add to database
+
+    print("Received peer list: ", rcvd_peer_set)
     write_to_file(repr(peer_list))
+
+# Will find a block such that it's hash is equal to GENESIS_BLOCK_HASH
+def generate_genesis_block():
+    hex_alpha = "abcdef"
+
+    while True:
+        # Generate random merkel root and prev hash
+        random_mr = ''.join(random.choices(string.ascii_letters + string.digits, k = 2))
+        random_prev_hash = ''.join((random.choice(hex_alpha) for i in range(4)))
+
+        # Calculate the hash
+        block = Block(str(random_prev_hash), str(random_mr), str(int(time.time())))
+        block_hash = hashlib.sha3_512(str(block).encode()).hexdigest()
+
+        if (block_hash[-4:] == GENESIS_BLOCK_HASH):
+            return block
+
 
 # Function to write the logs to an output file.
 def write_to_file(line):
