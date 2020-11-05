@@ -17,6 +17,7 @@ inbound_peers = dict()
 outbound_peers = dict()
 message_list = dict()
 GENESIS_BLOCK_HASH = '9e1c'
+MERKEL_ROOT = 'MR'
 
 #This is a peer object which contains all the information required to communicate with the other peers.
 class Peer:
@@ -63,6 +64,7 @@ def start_listening(s):
             # Used by seed node for liveness checking
             if msg == "test":
                 continue
+
             peer_sv_socket = msg.split(":")
             peer_sv_ip = peer_sv_socket[0]
             peer_sv_port = peer_sv_socket[1]
@@ -70,7 +72,14 @@ def start_listening(s):
             peer = Peer(conn, peer_sv_ip, peer_sv_port)
             inbound_peers[peer_key] = peer
             print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
-            threading.Thread(target=handle_conn, args=[peer]).start()
+            
+            #TODO: reply with the recent block (GET from DB)
+
+            #TODO: receive req for remaining blocks
+
+            #TODO: reply with remaining blocks (GET from DB)
+
+            threading.Thread(target=handle_conn, args=[peer, cv]).start()
         except KeyboardInterrupt:
             print('Server closing')
             s.close()
@@ -81,7 +90,7 @@ def get_key_for_node(ip, port):
 
 
 # HANDLING CONNECTIONS FROM OTHER PEER
-def handle_conn(peer):
+def handle_conn(peer, cv):
     threading.Thread(target=check_liveness, args=[peer]).start()
     while not peer.terminate_flag:
         try:
@@ -131,7 +140,10 @@ def handle_conn(peer):
                 if hashval.hexdigest() in message_list.keys():
                     continue
                 message_list[hashval.hexdigest()] = True
-                handle_gossip_msg(peer, msg)
+                cv.acquire()
+                cv.notify()
+                cv.release()
+                # handle_gossip_msg(peer, msg)
         except Exception as ex:
             pass
             # print(f"handle_conn : {ex}")
@@ -336,7 +348,7 @@ def write_to_file(line):
 
 
 # FOR CONNECTING TO PEER NODES
-def connect_peers():
+def connect_peers(cv):
     # THE ORDERING IS NOT GUARANTEED IN SET. SO SHUFFLING IS NOT REQUIRED
     peer_cnt = 0
     for peer in rcvd_peer_set:
@@ -360,10 +372,17 @@ def connect_peers():
             # print(err)
             peer_connection_refused(ip, port)
             continue
+        
+        # TODO:Receive recent block from connected peers
+        
+        # TODO:If received block is not genesis block, req for other blocks
+        
+        # TODO:Receive remaining blocks from connected peers
+
         key = get_key_for_node(ip, port)
         connected_to = Peer(s, ip, port)
         outbound_peers[key] = connected_to
-        threading.Thread(target=handle_conn, args=[connected_to]).start()
+        threading.Thread(target=handle_conn, args=[connected_to, cv]).start()
 
 
 # Generate msgs every 5 seconds 10 times (from inception) and send to all inbound and outbound_peers
@@ -436,6 +455,49 @@ def peer_connection_refused(ip,port):
             pass
             # print(f"handle_dead_node : {ex}")
 
+def mine():
+    while(True):
+        waitingTime = random.randint(5, 15)
+        print(f"Mining start... It will take {waitingTime}s")
+        prev_hash = "0000"
+        cv.acquire()
+        timeout = not cv.wait(waitingTime)
+        if timeout:
+            print(f"Mining took {waitingTime}s!")
+            block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
+            hashval = hashlib.sha256(str(block).encode())
+            message_list[hashval.hexdigest()] = True
+        else:
+            block = ""
+            print("received block from other peer")
+
+        cv.release()
+        broadcast_block(str(block))
+
+def broadcast_block(msg):
+    data = pickle.dumps(msg)
+    data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+    
+    for outbound_peer in outbound_peers.values():
+        try:
+            outbound_peer.conn_lock.acquire()
+            outbound_peer.conn.sendall(data)
+        except Exception as ex:
+            pass
+            # print(f"broadcast_block : {ex}")
+        finally:
+            outbound_peer.conn_lock.release()
+
+    for inbound_peer in inbound_peers.values():
+        try:
+            inbound_peer.conn_lock.acquire()
+            inbound_peer.conn.sendall(data)
+        except Exception as ex:
+            pass
+            # print(f"broadcast_block : {ex}")
+        finally:
+            inbound_peer.conn_lock.release()
+
 
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
@@ -448,11 +510,16 @@ file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
 # 3. Parse config file, connect to seed nodes and collate peers list
 connect_seeds()
 
-# 4. Connect to 4 distinct peers
-connect_peers()
+# condition variable will be used to wait-signal 
+# mine() will wait on the condition variable
+# when a new block comes, it will signal the condition variable
+cv = threading.Condition()
 
-# 5. Generate messages and send to outbound peers
-generate_msgs()
+# 4. Connect to 4 distinct peers
+connect_peers(cv)
+
+# starts mining
+mine()
 
 t1.join()
 file.close()
