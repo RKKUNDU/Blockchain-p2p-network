@@ -15,7 +15,7 @@ seed_list=[]
 node_hash_power=0
 global_lambda=0
 
-class  initialise_ip_addresses:
+class initialise_ip_addresses:
 
     def __init__(self):
 
