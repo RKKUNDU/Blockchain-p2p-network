@@ -7,17 +7,22 @@ from initialise_ip_addresses import initialise_ip_addresses
 from peer_db_conn import peer_db_conn
 import hashlib, errno, math, random, os, string
 from block import Block
-
+import queue
 
 #Inititalising the sets and variables used by this peer node.
 HEADER_SIZE = 10
 BLOCK_SIZE = 16
 LEN = 4096
+
+pending_queue = queue.Queue() # Infinite length queue.
+block_list = dict()
+
 rcvd_peer_set = set()
 connected_seeds = []
 inbound_peers = dict()
 outbound_peers = dict()
 message_list = dict()
+
 GENESIS_BLOCK_HASH = '9e1c'
 MERKEL_ROOT = 'MR'
 
@@ -403,22 +408,31 @@ def connect_peers(cv):
 
         latest_block = pickle.loads(msg)
 
+        if latest_block not in block_list.keys():
+            block_list[latest_block] = True
+            pending_queue.put(latest_block)
+        
         # TODO:If received block is not genesis block, req for other blocks
         if get_hash(latest_block) != GENESIS_BLOCK_HASH:
             data = pickle.dumps(latest_block)
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
             s.sendall(data)
+            # TODO:Receive remaining blocks from connected peers
             msg_len = int(s.recv(HEADER_SIZE))
             msg = b""
             while len(msg) < msg_len:
                 data = s.recv(msg_len-len(msg))
                 msg += data
             
-            msg = pickle.loads(msg)
-            print(msg)
-
-        # TODO:Receive remaining blocks from connected peers
-        
+            received_blocks = pickle.loads(msg)
+            # print(received_blocks)
+            for block in received_blocks:
+                if block in block_list.keys():
+                    pass
+                else:
+                    block_list[block] = True
+                    pending_queue.put(block)
+                
 
         key = get_key_for_node(ip, port)
         connected_to = Peer(s, ip, port)
@@ -566,6 +580,8 @@ cv = threading.Condition()
 
 # 4. Connect to 4 distinct peers
 connect_peers(cv)
+
+#TODO: Build the longest chain
 
 # starts mining
 mine()
