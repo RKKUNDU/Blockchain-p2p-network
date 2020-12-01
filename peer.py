@@ -4,6 +4,7 @@
 from datetime import datetime
 import pickle, socket, threading, time
 from initialise_ip_addresses import initialise_ip_addresses
+from peer_db_conn import peer_db_conn
 import hashlib, errno, math, random, os, string
 from block import Block
 from peer_db_conn import peer_db_conn
@@ -74,11 +75,12 @@ def start_listening(s):
             print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             
             #TODO: reply with the recent block (GET from DB)
-
+            latest_block = db.db_fetch_latest_block()
             #TODO: receive req for remaining blocks
-
+            
             #TODO: reply with remaining blocks (GET from DB)
-
+            all_blocks = db.db_fetch_blocks_till(latest_block)
+            
             threading.Thread(target=handle_conn, args=[peer, cv]).start()
         except KeyboardInterrupt:
             print('Server closing')
@@ -318,7 +320,9 @@ def connect_seeds():
     if len(rcvd_peer_set) == 1:
         genesis_block = generate_genesis_block()
         print(str(genesis_block))
-        # TODO: Add to database
+        # DONE: Add to database
+        db.db_insert(str(genesis_block))
+
 
     print("Received peer list: ", rcvd_peer_set)
     write_to_file(repr(peer_list))
@@ -502,6 +506,7 @@ def broadcast_block(msg):
 
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
+db = peer_db_conn()
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.start()
 
