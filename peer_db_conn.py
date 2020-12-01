@@ -33,7 +33,7 @@ class peer_db_conn:
     def db_insert(self, block):
         mycursor = self.mydb.cursor()
         sql = "INSERT INTO blocks(block) VALUES (%s)"
-        val = block
+        val = str(block)
         mycursor.execute(sql, (val,))
         self.mydb.commit()
     
@@ -42,10 +42,11 @@ class peer_db_conn:
         sql = "select block from blocks where id=(select max(id) from blocks)"
         mycursor.execute(sql)
         block = mycursor.fetchall()
-        return block[0][0]
+        return str(block[0][0])
 
     def db_fetch_blocks_till(self, block):
         all_blocks = list()
+        block = str(block)
         mycursor = self.mydb.cursor()
         sql = "select id from blocks where block=(%s)"
         mycursor.execute(sql, (block,))
