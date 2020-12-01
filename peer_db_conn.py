@@ -4,7 +4,7 @@ class peer_db_conn:
 
     def __init__(self):
         database_not_exists=1
-        self.mydb = mysql.connector.connect(host="localhost",user="root",password="12345678")
+        self.mydb = mysql.connector.connect(host="localhost",user="RK",password="password", auth_plugin = "mysql_native_password")
         mycursor = self.mydb.cursor()
         mycursor.execute("show databases")
         for x in mycursor:
@@ -13,7 +13,8 @@ class peer_db_conn:
                 database_not_exists=0
         if database_not_exists:
             mycursor.execute("CREATE DATABASE blockchain")
-        self.mydb = mysql.connector.connect(host="localhost",user="root",password="12345678",database="blockchain")
+        self.mydb = mysql.connector.connect(host="localhost",user="RK", password="password",database="blockchain")
+        self.create_table()
         print('Connected to \'blockchain\' database...')
     
     def create_table(self):

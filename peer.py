@@ -6,7 +6,7 @@ import pickle, socket, threading, time
 from initialise_ip_addresses import initialise_ip_addresses
 import hashlib, errno, math, random, os, string
 from block import Block
-
+from peer_db_conn import peer_db_conn
 
 #Inititalising the sets and variables used by this peer node.
 HEADER_SIZE = 10
@@ -376,7 +376,7 @@ def connect_peers(cv):
         # TODO:Receive recent block from connected peers
         
         # TODO:If received block is not genesis block, req for other blocks
-        
+
         # TODO:Receive remaining blocks from connected peers
 
         key = get_key_for_node(ip, port)
@@ -455,7 +455,7 @@ def peer_connection_refused(ip,port):
             pass
             # print(f"handle_dead_node : {ex}")
 
-def mine():
+def mine(db):
     while(True):
         waitingTime = random.randint(5, 15)
         print(f"Mining start... It will take {waitingTime}s")
@@ -467,6 +467,7 @@ def mine():
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
+            db.db_insert(str(block))
         else:
             block = ""
             print("received block from other peer")
@@ -507,6 +508,9 @@ t1.start()
 # 2. Open file
 file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
 
+# Connecting to DB
+db = peer_db_conn()
+
 # 3. Parse config file, connect to seed nodes and collate peers list
 connect_seeds()
 
@@ -519,7 +523,7 @@ cv = threading.Condition()
 connect_peers(cv)
 
 # starts mining
-mine()
+mine(db)
 
 t1.join()
 file.close()
