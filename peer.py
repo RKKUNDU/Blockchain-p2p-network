@@ -8,6 +8,7 @@ from peer_db_conn import peer_db_conn
 import hashlib, errno, math, random, os, string
 from block import Block
 import queue
+from build_longest_chain import BuildLongestChain
 
 #Inititalising the sets and variables used by this peer node.
 HEADER_SIZE = 10
@@ -82,7 +83,7 @@ def start_listening(s):
             
             #TODO: reply with the recent block (GET from DB)
 
-            latest_block = db.db_fetch_latest_block()
+            latest_block = db.db_fetch_latest_block(my_sv_port)
             data = pickle.dumps(str(latest_block))
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
             conn.sendall(data)
@@ -93,7 +94,7 @@ def start_listening(s):
                 break
 
             #TODO: reply with remaining blocks (GET from DB)
-            all_blocks = db.db_fetch_blocks_till(latest_block)
+            all_blocks = db.db_fetch_blocks_till(latest_block, my_sv_port)
             data = pickle.dumps(all_blocks)
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
             conn.sendall(data)
@@ -338,7 +339,7 @@ def connect_seeds():
         genesis_block = generate_genesis_block()
         print(str(genesis_block))
         # DONE: Add to database
-        db.db_insert(str(genesis_block))
+        db.db_insert(str(genesis_block), my_sv_port)
 
 
     print("Received peer list: ", rcvd_peer_set)
@@ -408,6 +409,7 @@ def connect_peers(cv):
 
         latest_block = pickle.loads(msg)
 
+        # Insert the block into the pending queue
         if latest_block not in block_list.keys():
             block_list[latest_block] = True
             pending_queue.put(latest_block)
@@ -425,14 +427,14 @@ def connect_peers(cv):
                 msg += data
             
             received_blocks = pickle.loads(msg)
-            # print(received_blocks)
+
+            # Insert the blocks into the pending queue
             for block in received_blocks:
                 if block in block_list.keys():
                     pass
                 else:
                     block_list[block] = True
                     pending_queue.put(block)
-                
 
         key = get_key_for_node(ip, port)
         connected_to = Peer(s, ip, port)
@@ -512,10 +514,12 @@ def peer_connection_refused(ip,port):
 
 def mine(db):
     while(True):
+        #TODO: add exp var
         waitingTime = random.randint(5, 15)
         print(f"Mining start... It will take {waitingTime}s")
         # TODO : Fix this.
-        prev_hash = "0000"
+        latest_block = db.db_fetch_latest_block(my_sv_port)
+        prev_hash = get_hash(latest_block)
         cv.acquire()
         timeout = not cv.wait(waitingTime)
         if timeout:
@@ -523,8 +527,9 @@ def mine(db):
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
-            db.db_insert(str(block))
+            db.db_insert(str(block), my_sv_port)
         else:
+            # TODO: validate the received block
             block = ""
             print("received block from other peer")
 
@@ -563,7 +568,7 @@ def get_hash(block):
 
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
-db = peer_db_conn()
+
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.start()
 
@@ -571,7 +576,7 @@ t1.start()
 file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
 
 # Connecting to DB
-db = peer_db_conn()
+db = peer_db_conn(my_ip, my_sv_port)
 
 # 3. Parse config file, connect to seed nodes and collate peers list
 connect_seeds()
@@ -584,7 +589,10 @@ cv = threading.Condition()
 # 4. Connect to 4 distinct peers
 connect_peers(cv)
 
+print("Q: ", pending_queue.queue)
+
 #TODO: Build the longest chain
+longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
 
 # starts mining
 mine(db)

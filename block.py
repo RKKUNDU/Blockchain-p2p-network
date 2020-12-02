@@ -1,7 +1,7 @@
-PREV_HASH_FIELD = 4
-MERKEL_ROOT_FIELD = 2
-TIMESTAMP_FIELD = 10
 class Block:
+    PREV_HASH_FIELD = 4
+    MERKEL_ROOT_FIELD = 2
+    TIMESTAMP_FIELD = 10
     def __init__(self, prev_hash, merkel_root, timestamp):
         self.prev_hash = prev_hash # 4 characters
         self.merkel_root = merkel_root # 2 characters
@@ -9,9 +9,9 @@ class Block:
 
     @classmethod
     def set_block(self, block_string):
-        prev_hash = block_string[:PREV_HASH_FIELD] # first 4 byte is prevHash hex digest
-        merkel_root = block_string[PREV_HASH_FIELD:PREV_HASH_FIELD + MERKEL_ROOT_FIELD]
-        timestamp = block_string[-TIMESTAMP_FIELD:]
+        prev_hash = block_string[:self.PREV_HASH_FIELD] # first 4 byte is prevHash hex digest
+        merkel_root = block_string[self.PREV_HASH_FIELD:self.PREV_HASH_FIELD + self.MERKEL_ROOT_FIELD]
+        timestamp = block_string[-self.TIMESTAMP_FIELD:]
         return Block(prev_hash, merkel_root, timestamp)
 
     def __str__(self):

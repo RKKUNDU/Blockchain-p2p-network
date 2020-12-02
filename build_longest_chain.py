@@ -2,9 +2,16 @@ from queue import Queue
 from block import Block
 import hashlib
 import random 
+from peer_db_conn import peer_db_conn
 
 class BuildLongestChain:
-    def start_building(self, q): # q is the pending queue
+    def __init__(self, q, db, my_sv_port): 
+        '''
+        Input:
+            q (queue): the pending queue
+            db (database connection)
+            my_sv_port (int): server port no of the peer
+        '''
         blocks = list() 
         while(not q.empty()):
             block = Block.set_block(q.get())
@@ -18,7 +25,7 @@ class BuildLongestChain:
             this_block = {'block': str(block), 'parentBlockIndex': len(blocks), 'depth': -1} 
 
             for i in range(len(blocks)):
-                block_i_prev_hash = blocks[i]['block'][:PREV_HASH_FIELD]
+                block_i_prev_hash = blocks[i]['block'][:Block.PREV_HASH_FIELD]
                 # block_i_timestamp = block[i]['block'][-TIMESTAMP_FIELD:]
                 
                 block_i_hash = hashlib.new("sha3_512", blocks[i]['block'].encode()).hexdigest()[-4:]
@@ -33,9 +40,34 @@ class BuildLongestChain:
             blocks.append(this_block)
 
         self.print_longest_chain(blocks)
-        self.print_all_blocks(blocks)
+        self.insert_longest_chain_to_db(blocks, db, my_sv_port)
+        # self.print_all_blocks(blocks)
+
+    def insert_longest_chain_to_db(self, blocks, db, my_sv_port):
+        if len(blocks) == 0:
+            return
+
+        longest = 0
+        for i in range(len(blocks)):
+            self.set_depth(blocks, i)
+            if blocks[longest]['depth'] < blocks[i]['depth']:
+                longest = i
+
+        blocks_in_longest_chain = list()
+        while blocks[longest]['parentBlockIndex'] != longest:
+            blocks_in_longest_chain.append(blocks[longest]['block'])
+            longest = blocks[longest]['parentBlockIndex']
+
+        blocks_in_longest_chain.append(blocks[longest]['block'])
+
+        # insert blocks to DB in order (older block first)
+        for i in range(len(blocks_in_longest_chain)-1, 0, -1):
+            db.db_insert(blocks_in_longest_chain[i], my_sv_port)
 
     def print_longest_chain(self, blocks):
+        if len(blocks) == 0:
+            return
+
         longest = 0
         for i in range(len(blocks)):
             self.set_depth(blocks, i)
