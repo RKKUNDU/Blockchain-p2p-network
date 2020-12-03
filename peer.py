@@ -81,19 +81,18 @@ def start_listening(s):
             inbound_peers[peer_key] = peer
             print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             
-            #TODO: reply with the recent block (GET from DB)
-
+            # reply with the recent block (GET from DB)
             latest_block = db.db_fetch_latest_block(my_sv_port)
             data = pickle.dumps(str(latest_block))
-            data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+            data = bytes(f'{len(data):<{HEADER_SIZE}}', 'utf-8') + data
             conn.sendall(data)
             
-            #TODO: receive req for remaining blocks
+            # receive req for remaining blocks
             data = conn.recv(BLOCK_SIZE+HEADER_SIZE)
             if data==0:
                 break
 
-            #TODO: reply with remaining blocks (GET from DB)
+            # reply with remaining blocks (GET from DB)
             all_blocks = db.db_fetch_blocks_till(latest_block, my_sv_port)
             data = pickle.dumps(all_blocks)
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -159,10 +158,20 @@ def handle_conn(peer, cv):
                 hashval = hashlib.sha256(msg.encode())
                 if hashval.hexdigest() in message_list.keys():
                     continue
+
                 message_list[hashval.hexdigest()] = True
+                
+                # received block from other peer
+                # insert the block into pending queue
+                if msg not in block_list.keys():
+                    block_list[msg] = True
+                    pending_queue.put(msg)
+
                 cv.acquire()
+                # notify miner thread to validate the block
                 cv.notify()
                 cv.release()
+
                 # handle_gossip_msg(peer, msg)
         except Exception as ex:
             pass
@@ -395,7 +404,7 @@ def connect_peers(cv):
             peer_connection_refused(ip, port)
             continue
         
-        # TODO:Receive recent block from connected peers
+        # Receive most recent block from connected peers
         data = s.recv(HEADER_SIZE + BLOCK_SIZE)
 
         if len(data) == 0:
@@ -414,12 +423,13 @@ def connect_peers(cv):
             block_list[latest_block] = True
             pending_queue.put(latest_block)
         
-        # TODO:If received block is not genesis block, req for other blocks
+        # if received block is not genesis block, request for other blocks
         if get_hash(latest_block) != GENESIS_BLOCK_HASH:
             data = pickle.dumps(latest_block)
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
             s.sendall(data)
-            # TODO:Receive remaining blocks from connected peers
+
+            # Receive remaining blocks from connected peer
             msg_len = int(s.recv(HEADER_SIZE))
             msg = b""
             while len(msg) < msg_len:
@@ -515,11 +525,13 @@ def peer_connection_refused(ip,port):
 def mine(db):
     while(True):
         #TODO: add exp var
-        waitingTime = random.randint(5, 15)
+        waitingTime = random.randint(10, 20)
         print(f"Mining start... It will take {waitingTime}s")
-        # TODO : Fix this.
+        
+        # TODO: find some alternative (instead of fetching from DB)
         latest_block = db.db_fetch_latest_block(my_sv_port)
         prev_hash = get_hash(latest_block)
+
         cv.acquire()
         timeout = not cv.wait(waitingTime)
         if timeout:
@@ -529,8 +541,16 @@ def mine(db):
             message_list[hashval.hexdigest()] = True
             db.db_insert(str(block), my_sv_port)
         else:
-            # TODO: validate the received block
-            block = ""
+            # TODO: what if multiple valid block received
+            # validate the received block
+            while not pending_queue.empty():
+                block = Block.set_block(pending_queue.get())
+                block_prev_hash = block.get_prev_block_hash()
+
+                # valid block
+                if prev_hash == block_prev_hash:
+                    db.db_insert(str(block), my_sv_port)
+
             print("received block from other peer")
 
         cv.release()
@@ -591,7 +611,6 @@ connect_peers(cv)
 
 print("Q: ", pending_queue.queue)
 
-#TODO: Build the longest chain
 longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
 
 # starts mining
