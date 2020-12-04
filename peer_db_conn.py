@@ -58,7 +58,6 @@ class peer_db_conn:
         mycursor = self.mydb.cursor()
         sql = f"select id, parent_id from blocks{my_sv_port} where block=(%s)"
         mycursor.execute(sql, (block,))
-        print(block)
         id, parent_id = mycursor.fetchall()[0] # id, parent_id of the latest block "block" in DB
        
         # fetch all the blocks from DB

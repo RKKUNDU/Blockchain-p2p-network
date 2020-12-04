@@ -535,14 +535,17 @@ def mine(db):
 
         cv.acquire()
         timeout = not cv.wait(waitingTime)
+        cv.release()
         if timeout:
-            print(f"Mining took {waitingTime}s!")
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
+            db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
+            print(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
+
+            # broadcast the mined block
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
-            db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
+            broadcast_block(str(block))
         else:
-            # TODO: what if multiple valid block received
             # validate the received block
             while not pending_queue.empty():
                 block = Block.set_block(pending_queue.get())
@@ -552,20 +555,20 @@ def mine(db):
                 current_timestamp = int(time.time())
                 # block was generated within 1 hour (plus or minus) of current time
                 # 1 hour = 3600 sec
-                if (current_timestamp - block_timestamp > 3600) or (block_timestamp - current_timestamp) > 3600:
+                if (current_timestamp - block_timestamp) > 3600 or (block_timestamp - current_timestamp) > 3600:
                     continue
 
                 is_valid, parent_id, parent_height = db.is_block_present(block_prev_hash, my_sv_port)
                 # valid block
                 if is_valid:
-                    print("received valid block from other peer")
+                    print(f"received valid block {block} for height {parent_height + 1}")
                     db.db_insert(str(block), parent_id, parent_height + 1, my_sv_port)
-
-                    #TODO: broadcast block
-
-
-        cv.release()
-        broadcast_block(str(block))
+                    
+                    # broadcast the validated block
+                    hashval = hashlib.sha256(str(block).encode())
+                    message_list[hashval.hexdigest()] = True
+                    broadcast_block(str(block))
+                            
 
 def broadcast_block(msg):
     data = pickle.dumps(msg)
@@ -620,7 +623,7 @@ cv = threading.Condition()
 # 4. Connect to 4 distinct peers
 connect_peers(cv)
 
-print("Q: ", pending_queue.queue)
+# print("Q: ", pending_queue.queue)
 
 longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
 
