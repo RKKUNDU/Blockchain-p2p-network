@@ -62,8 +62,20 @@ class BuildLongestChain:
 
         # insert blocks to DB in order (older block first)
         for i in range(len(blocks_in_longest_chain)-1, -1, -1):
-            print(f"Block {len(blocks_in_longest_chain) - i}: {blocks_in_longest_chain[i]}")
-            db.db_insert(blocks_in_longest_chain[i], my_sv_port)
+            # we will insert {len(blocks_in_longest_chain) - i} -th block at the i-th iteration
+            # so the blocks height will be {len(blocks_in_longest_chain) - i}
+            # and the blocks parent_id will be {len(blocks_in_longest_chain) - i - 1}
+            # except for 1st block whose parent_id will be 1
+            
+            block_no = len(blocks_in_longest_chain) - i
+            parent_id = len(blocks_in_longest_chain) - i - 1
+            height = len(blocks_in_longest_chain) - i
+
+            if block_no == 1:
+                parent_id = 1
+
+            print(f"Block {block_no}: {blocks_in_longest_chain[i]}")
+            db.db_insert(blocks_in_longest_chain[i], parent_id, height, my_sv_port)
 
     def print_longest_chain(self, blocks):
         if len(blocks) == 0:

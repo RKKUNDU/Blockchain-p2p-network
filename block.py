@@ -24,4 +24,4 @@ class Block:
         return self.merkel_root
 
     def get_timestamp(self):
-        return self.timestamp
+        return int(self.timestamp)

@@ -82,7 +82,7 @@ def start_listening(s):
             print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             
             # reply with the recent block (GET from DB)
-            latest_block = db.db_fetch_latest_block(my_sv_port)
+            latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
             data = pickle.dumps(str(latest_block))
             data = bytes(f'{len(data):<{HEADER_SIZE}}', 'utf-8') + data
             conn.sendall(data)
@@ -321,10 +321,12 @@ def connect_seeds():
         except Exception as ex:
             pass
             # print(f"connect_seeds: {ex}")
+
         try:
             data = s.recv(LEN)
             if len(data) == 0:
                 break
+
             msglen = int(data[:HEADER_SIZE].decode('utf-8'))
             msg = data[HEADER_SIZE:]
             while len(msg)  < msglen:
@@ -346,10 +348,9 @@ def connect_seeds():
     # If this peer is the first node in the blockchain network, then generate the genesis block
     if len(rcvd_peer_set) == 1:
         genesis_block = generate_genesis_block()
-        print(str(genesis_block))
-        # DONE: Add to database
-        db.db_insert(str(genesis_block), my_sv_port)
-
+        print("Genesis Block:", str(genesis_block))
+        # insert genesis block to database
+        db.db_insert(str(genesis_block), 1, 1, my_sv_port)
 
     print("Received peer list: ", rcvd_peer_set)
     write_to_file(repr(peer_list))
@@ -529,7 +530,7 @@ def mine(db):
         print(f"Mining start... It will take {waitingTime}s")
         
         # TODO: find some alternative (instead of fetching from DB)
-        latest_block = db.db_fetch_latest_block(my_sv_port)
+        latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
         prev_hash = get_hash(latest_block)
 
         cv.acquire()
@@ -539,19 +540,29 @@ def mine(db):
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
-            db.db_insert(str(block), my_sv_port)
+            db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
         else:
             # TODO: what if multiple valid block received
             # validate the received block
             while not pending_queue.empty():
                 block = Block.set_block(pending_queue.get())
                 block_prev_hash = block.get_prev_block_hash()
+                block_timestamp = block.get_timestamp()
 
+                current_timestamp = int(time.time())
+                # block was generated within 1 hour (plus or minus) of current time
+                # 1 hour = 3600 sec
+                if (current_timestamp - block_timestamp > 3600) or (block_timestamp - current_timestamp) > 3600:
+                    continue
+
+                is_valid, parent_id, parent_height = db.is_block_present(block_prev_hash, my_sv_port)
                 # valid block
-                if prev_hash == block_prev_hash:
-                    db.db_insert(str(block), my_sv_port)
+                if is_valid:
+                    print("received valid block from other peer")
+                    db.db_insert(str(block), parent_id, parent_height + 1, my_sv_port)
 
-            print("received block from other peer")
+                    #TODO: broadcast block
+
 
         cv.release()
         broadcast_block(str(block))
