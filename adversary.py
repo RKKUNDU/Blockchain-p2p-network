@@ -1,5 +1,5 @@
 #!/usr/bin/python          
-# THIS IS A PEER NODE WHOSE IP, PORT NO IS NOT FIXED.
+# THIS IS A PEER NODE (ADVERSARY) WHOSE IP, PORT NO IS NOT FIXED.
 
 from datetime import datetime
 import pickle, socket, threading, time
@@ -15,6 +15,8 @@ HEADER_SIZE = 10
 BLOCK_SIZE = 16
 LEN = 4096
 
+invalid_block_generation_time = 0.5
+
 pending_queue = queue.Queue() # Infinite length queue.
 block_list = dict()
 
@@ -25,7 +27,7 @@ outbound_peers = dict()
 message_list = dict()
 
 GENESIS_BLOCK_HASH = '9e1c'
-MERKEL_ROOT = 'MR'
+MERKEL_ROOT = 'AD'
 
 #This is a peer object which contains all the information required to communicate with the other peers.
 class Peer:
@@ -380,17 +382,19 @@ def write_to_file(line):
 
 
 # FOR CONNECTING TO PEER NODES
-def connect_peers(cv):
+def connect_peers(cv, node_flooded):
     # THE ORDERING IS NOT GUARANTEED IN SET. SO SHUFFLING IS NOT REQUIRED
     peer_cnt = 0
     for peer in rcvd_peer_set:
-        # IF ALREADY 4 PEERS HAVE BEEN CONNECTED, NO NEED TO CONNECT MORE
-        if peer_cnt == 4:
+        # IF ALREADY `node_flooded` PEERS HAVE BEEN CONNECTED, NO NEED TO CONNECT MORE
+        if peer_cnt == node_flooded:
             break
+
         ip, port = peer
         # IF PEER IS THIS PROCESS ITSELF
         if ip == my_ip and port == my_sv_port:
             continue
+
         print(f"PEER-{peer_cnt} : IP {ip}, PORT {port}")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -595,9 +599,29 @@ def broadcast_block(msg):
             inbound_peer.conn_lock.release()
 
 
+def flood_invalid_block():
+    while True:
+        time.sleep(invalid_block_generation_time)
+
+        # Generate an invalid block
+        # Timestamp of the block is 2 hours back, so it is invalid
+        invalid_block = Block("----", MERKEL_ROOT, int(time.time()) - 7200)
+        data = pickle.dumps(str(invalid_block))
+
+        data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+        
+        for outbound_peer in outbound_peers.values():
+            try:
+                outbound_peer.conn_lock.acquire()
+                outbound_peer.conn.sendall(data)
+            except Exception as ex:
+                pass
+            finally:
+                outbound_peer.conn_lock.release()
+
+
 def get_hash(block):
     return hashlib.new("sha3_512", str(block).encode()).hexdigest()[-4:]
-
 
 
 # 1. Setup listening (server)
@@ -620,14 +644,21 @@ connect_seeds()
 # when a new block comes, it will signal the condition variable
 cv = threading.Condition()
 
+percentage = input("Enter % of nodes to be flooded: ")
+node_flooded = math.ceil(len(rcvd_peer_set) * int(percentage))
+print(node_flooded)
+
 # 4. Connect to 4 distinct peers
-connect_peers(cv)
+connect_peers(cv, node_flooded)
 
 # 5. Build longest chain
 longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
 
 # starts mining
-mine(db)
+threading.Thread(target=mine, args=[db]).start()
+
+# start flooding invalid blocks
+flood_invalid_block()
 
 t1.join()
 file.close()
