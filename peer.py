@@ -24,11 +24,13 @@ inbound_peers = dict()
 outbound_peers = dict()
 message_list = dict()
 
+
 GENESIS_BLOCK_HASH = '9e1c'
 MERKEL_ROOT = 'MR'
-inter_arrival_time=0
+inter_arrival_time = 0
 global_lamda = 0
 node_hash_power = 0
+
 #This is a peer object which contains all the information required to communicate with the other peers.
 class Peer:
     def __init__(self,conn,sv_ip,sv_port):
@@ -300,13 +302,14 @@ def handle_gossip_msg(peer, msg):
 
 # FOR CONNECTING TO SEEDS
 def connect_seeds():
+    
     # GETTING DETAILS OF THE SEEDS
     config = initialise_ip_addresses()
     seed_list = config.get_seed_list()
-    inter_arrival_time = config.get_inter_arrival_time()
-    global_lamda = 1.0/inter_arrival_time
-    node_hash_power = sys.argv[1]
 
+    # Get the global inter arrival time
+    # inter_arrival_time = config.get_inter_arrival_time()
+    
     cnt = 0
     n = len(seed_list)
     seeds_to_connect = math.floor(n/2)+1
@@ -530,12 +533,19 @@ def peer_connection_refused(ip,port):
             # print(f"handle_dead_node : {ex}")
 
 def mine(db):
+    with open('inter_arrival_time.txt','r') as iat_file:
+            inter_arrival_time =  iat_file.readline()
+
+    global_lambda = 1.0 / float(inter_arrival_time)
+    node_hash_power = float(sys.argv[1])
+    local_lambda = (node_hash_power * global_lambda) / 100.0
+    print("Local lambda: " + str(local_lambda))
+
     while(True):
-        #TODO: add exp var
         # wait_time = numpy.random.exponential() / lambda
-        lamda = (node_hash_power * global_lamda)/100.0
+        
         # waitingTime = random.randint(10, 20)
-        waitingTime = numpy.random.exponential() / lamda
+        waitingTime = numpy.random.exponential() / local_lambda
         print(f"Mining start... It will take {waitingTime}s")
         
         # TODO: find some alternative (instead of fetching from DB)
@@ -565,6 +575,7 @@ def mine(db):
                 # block was generated within 1 hour (plus or minus) of current time
                 # 1 hour = 3600 sec
                 if (current_timestamp - block_timestamp) > 3600 or (block_timestamp - current_timestamp) > 3600:
+                    print(f'Discarding invalid block {str(block)}')
                     continue
 
                 is_valid, parent_id, parent_height = db.is_block_present(block_prev_hash, my_sv_port)
@@ -633,7 +644,11 @@ cv = threading.Condition()
 connect_peers(cv)
 
 # 5. Build longest chain
-longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
+build_helper = BuildLongestChain()
+longest_chain = build_helper.get_longest_chain(pending_queue)
+
+# 6. Insert longest chain to database
+build_helper.insert_longest_chain_to_db(longest_chain, db, my_sv_port)
 
 # starts mining
 mine(db)
