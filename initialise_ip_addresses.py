@@ -14,6 +14,7 @@ import json
 seed_list=[]
 node_hash_power=0
 global_lambda=0
+inter_arrival_time=0
 
 class initialise_ip_addresses:
 
@@ -30,6 +31,10 @@ class initialise_ip_addresses:
             for global_lambda,node_hash_power in reader:
                 self.node_hash_power = node_hash_power
                 self.global_lambda = global_lambda
+        
+        with open('inter_arrival_time.txt','r') as iat_file:
+            self.inter_arrival_time =  iat_file.readline()
+
 
     def get_seed_list(self):
         return self.seed_list
@@ -39,6 +44,10 @@ class initialise_ip_addresses:
     
     def get_node_hash_power(self):
         return self.node_hash_power
-    
 
+    def get_inter_arrival_time(self):
+        return self.inter_arrival_time    
 
+# config = initialise_ip_addresses()
+# inter_arrival_time = config.get_inter_arrival_time()
+# print(inter_arrival_time)

@@ -2,7 +2,7 @@
 # THIS IS A PEER NODE WHOSE IP, PORT NO IS NOT FIXED.
 
 from datetime import datetime
-import pickle, socket, threading, time
+import pickle, socket, threading, time, sys, numpy
 from initialise_ip_addresses import initialise_ip_addresses
 from peer_db_conn import peer_db_conn
 import hashlib, errno, math, random, os, string
@@ -26,7 +26,9 @@ message_list = dict()
 
 GENESIS_BLOCK_HASH = '9e1c'
 MERKEL_ROOT = 'MR'
-
+inter_arrival_time=0
+global_lamda = 0
+node_hash_power = 0
 #This is a peer object which contains all the information required to communicate with the other peers.
 class Peer:
     def __init__(self,conn,sv_ip,sv_port):
@@ -301,6 +303,10 @@ def connect_seeds():
     # GETTING DETAILS OF THE SEEDS
     config = initialise_ip_addresses()
     seed_list = config.get_seed_list()
+    inter_arrival_time = config.get_inter_arrival_time()
+    global_lamda = 1.0/inter_arrival_time
+    node_hash_power = sys.argv[1]
+
     cnt = 0
     n = len(seed_list)
     seeds_to_connect = math.floor(n/2)+1
@@ -526,7 +532,10 @@ def peer_connection_refused(ip,port):
 def mine(db):
     while(True):
         #TODO: add exp var
-        waitingTime = random.randint(10, 20)
+        # wait_time = numpy.random.exponential() / lambda
+        lamda = (node_hash_power * global_lamda)/100.0
+        # waitingTime = random.randint(10, 20)
+        waitingTime = numpy.random.exponential() / lamda
         print(f"Mining start... It will take {waitingTime}s")
         
         # TODO: find some alternative (instead of fetching from DB)
