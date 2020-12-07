@@ -61,7 +61,8 @@ def bind_socket():
 # ACCEPT CONNECTIONS FROM OTHER PEERS
 def start_listening(s):
     s.listen()
-    print(f"You can connect to me @ {my_ip}:{my_sv_port}")
+    # print(f"You can connect to me @ {my_ip}:{my_sv_port}")
+    write_to_file(f"You can connect to me @ {my_ip}:{my_sv_port}")
     while True:
         try:
             conn, (ip, port) = s.accept()
@@ -89,7 +90,7 @@ def start_listening(s):
             peer = Peer(conn, peer_sv_ip, peer_sv_port)
             inbound_peers[peer_key] = peer
             # print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
-            
+            write_to_file(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             # reply with the recent block (GET from DB)
             latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
             data = pickle.dumps(str(latest_block))
@@ -157,6 +158,7 @@ def handle_conn(peer, cv):
 
             msg = pickle.loads(msg)
             # print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
+            write_to_file(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
             parts = msg.split(":")
             if parts[0] == "Liveness Request":
                 handle_liveness_req(peer, msg)
@@ -194,6 +196,7 @@ def handle_liveness_req(peer, recvd_msg):
     sender_time = parts[1] + ":" + parts[2] + ":" + parts[3]
     # print(sender_time)
     msg = f"Liveness Reply:{sender_time}:{peer.remote_ip}:{my_ip}"
+    write_to_file(msg)
     # print(f'\tSending: {msg}')
     data = pickle.dumps(msg)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -371,6 +374,7 @@ def connect_seeds():
     if len(rcvd_peer_set) == 1:
         genesis_block = generate_genesis_block()
         print("Genesis Block:", str(genesis_block))
+        write_to_file("Genesis Block:" + str(genesis_block))
         # insert genesis block to database
         db.db_insert(str(genesis_block), 1, 1, my_sv_port)
 
@@ -396,7 +400,7 @@ def generate_genesis_block():
 
 # Function to write the logs to an output file.
 def write_to_file(line):
-    file.write(line + "\n")
+    file.write(str(datetime.now()) + "> " + line + "\n")
     file.flush()
     os.fsync(file.fileno())
 
@@ -517,6 +521,7 @@ def generate_msgs():
 def check_liveness(peer):
     while not peer.terminate_flag:
         probe_msg = f"Liveness Request:{datetime.today().strftime('%Y-%m-%d-%H:%M:%S.%f')}:{my_ip}"
+        write_to_file(probe_msg)
         # print(f'\tSending Req: {probe_msg}')
         data = pickle.dumps(probe_msg)
         peer.pending_liveness_reply_cnt_lock.acquire()
@@ -563,12 +568,12 @@ def mine(db):
     node_hash_power = float(sys.argv[1])
     local_lambda = (node_hash_power * global_lambda) / 100.0
     # print("Local lambda: " + str(local_lambda))
+    write_to_file("Local lambda: " + str(local_lambda))
 
     while(True):
         waitingTime = numpy.random.exponential() / local_lambda
         # print(f"Mining start... It will take {waitingTime}s")
-        
-        # TODO: find some alternative (instead of fetching from DB)
+        write_to_file(f"Mining start... It will take {waitingTime}s")
         latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
         prev_hash = get_hash(latest_block)
 
@@ -579,7 +584,7 @@ def mine(db):
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
             # print(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
-
+            write_to_file(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
             # broadcast the mined block
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
@@ -601,6 +606,7 @@ def mine(db):
                 # valid block
                 if is_valid:
                     # print(f"received valid block {block} for height {parent_height + 1}")
+                    write_to_file(f"received valid block {block} for height {parent_height + 1}")
                     db.db_insert(str(block), parent_id, parent_height + 1, my_sv_port)
                     
                     # broadcast the validated block
@@ -650,7 +656,8 @@ def flood_invalid_block():
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
 
         # print(f'Sending invalid block {str(invalid_block)} to nodes')
-        
+        write_to_file(f'Sending invalid block {str(invalid_block)} to nodes')
+
         for outbound_peer in outbound_peers.values():
             try:
                 outbound_peer.conn_lock.acquire()
@@ -718,12 +725,16 @@ signal.signal(signal.SIGTERM, signal_handler)
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
 
+# 2. Open file
+file = open(f"./peer_output/adversary_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
+
+
+
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.daemon = True
 t1.start()
 
-# 2. Open file
-file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
+
 
 # Connecting to DB
 db = peer_db_conn(my_ip, my_sv_port)
@@ -738,7 +749,7 @@ cv = threading.Condition()
 
 percentage = sys.argv[3]# input("Enter % of nodes to be flooded: ")
 node_flooded = math.ceil(len(rcvd_peer_set) * int(percentage))
-print(node_flooded)
+# print(node_flooded)
 
 # 4. Connect to 4 distinct peers
 connect_peers(cv, node_flooded)

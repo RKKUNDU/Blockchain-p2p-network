@@ -146,6 +146,7 @@ def new_client(conn):
 def start_seed_node():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print(f"Connect to me IP: {myIP} PORT: {myPort}")
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((myIP, myPort))
         s.listen()
         while True:

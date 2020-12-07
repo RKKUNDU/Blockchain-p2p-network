@@ -5,7 +5,7 @@ class peer_db_conn:
 
     def __init__(self, my_ip, my_sv_port=-1):
         database_not_exists=1
-        self.mydb = mysql.connector.connect(host="localhost",user="root",password="")
+        self.mydb = mysql.connector.connect(host="localhost",user="root",password="12345678")
         mycursor = self.mydb.cursor()
         mycursor.execute("show databases")
         for x in mycursor:
@@ -16,7 +16,7 @@ class peer_db_conn:
         if database_not_exists:
             mycursor.execute("CREATE DATABASE blockchain")
 
-        self.mydb = mysql.connector.connect(host="localhost",user="root", password="",database="blockchain")
+        self.mydb = mysql.connector.connect(host="localhost",user="root", password="12345678",database="blockchain")
         if my_sv_port != -1:
             self.create_table(my_ip, my_sv_port)
         # print('Connected to \'blockchain\' database...')
@@ -27,6 +27,7 @@ class peer_db_conn:
         mycursor.execute("show tables")
         for x in mycursor:
             if x[0] == f'blocks{my_sv_port}':
+                # self.clear_table(my_sv_port)
                 # print('Table already exists...')
                 # mycursor.execute(f"DELETE FROM blocks{my_sv_port}")
                 table_not_exists=0   

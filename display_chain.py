@@ -12,7 +12,7 @@ def display_chain_for_node(port):
     blocks = db.fetch_all_blocks(port)
 
     # Uncomment the below line to test if graph creates fork.
-    blocks.append((8, 'abcdefgdifhijklm', '1234', 5, 6))
+    # blocks.append((8, 'abcdefgdifhijklm', '1234', 5, 6))
 
     # Initialise the graph to be visualised.
     dot = Digraph(comment='Blockchain')
@@ -80,6 +80,7 @@ def get_fraction_from_longest():
     return ans
     
     
-print(get_fraction_from_longest())
+# print(get_fraction_from_longest())
+display_chain_for_node(sys.argv[1])
 
 

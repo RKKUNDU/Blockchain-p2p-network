@@ -1,8 +1,7 @@
 NUM_OF_PEERS=2
 NUM_OF_ADVERSARY=1
-START=1
 SEED_IP='127.0.0.1'
-SEED_PORT='12345'
+SEED_PORT='12346'
 NODE_HASH_POWER=6.7
 ADVERSARY_HASH_POWER=33
 EXPERIMENT_TIME=60 #600 sec or 10 min
@@ -48,4 +47,4 @@ do
     echo 
 done
 
-python3 graph_generation.py
+# python3 graph_generation.py

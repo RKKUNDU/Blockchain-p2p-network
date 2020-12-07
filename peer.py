@@ -61,7 +61,8 @@ def bind_socket():
 # ACCEPT CONNECTIONS FROM OTHER PEERS
 def start_listening(s):
     s.listen()
-    print(f"You can connect to me @ {my_ip}:{my_sv_port}")
+    # print(f"You can connect to me @ {my_ip}:{my_sv_port}")
+    write_to_file(f"You can connect to me @ {my_ip}:{my_sv_port}")
     while True:
         try:
             conn, (ip, port) = s.accept()
@@ -89,7 +90,7 @@ def start_listening(s):
             peer = Peer(conn, peer_sv_ip, peer_sv_port)
             inbound_peers[peer_key] = peer
             # print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
-            
+            write_to_file(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             # reply with the recent block (GET from DB)
             latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
             data = pickle.dumps(str(latest_block))
@@ -110,6 +111,7 @@ def start_listening(s):
 
         except KeyboardInterrupt:
             print('Server closing')
+            write_to_file('Server closing')
             s.close()
 
 #Utility function for generating a key to store/access dict values
@@ -157,6 +159,7 @@ def handle_conn(peer, cv):
 
             msg = pickle.loads(msg)
             # print(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
+            write_to_file(f"{msg}, from {peer.remote_ip}:{peer.remote_port}")
             parts = msg.split(":")
             if parts[0] == "Liveness Request":
                 handle_liveness_req(peer, msg)
@@ -194,6 +197,7 @@ def handle_liveness_req(peer, recvd_msg):
     sender_time = parts[1] + ":" + parts[2] + ":" + parts[3]
     # print(sender_time)
     msg = f"Liveness Reply:{sender_time}:{peer.remote_ip}:{my_ip}"
+    write_to_file(msg)
     # print(f'\tSending: {msg}')
     data = pickle.dumps(msg)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
@@ -258,6 +262,7 @@ def handle_dead_node(peer):
     msg1 = "Reporting Dead Node Message: "+ msg
     write_to_file(msg1)
     print(msg)
+    # write_to_file(msg)
     data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
     #We send which node is dead to all the connected seeds.
     for sock in connected_seeds:
@@ -334,6 +339,7 @@ def connect_seeds():
         cnt += 1
         ip, port = seed
         # print("Connecting to Seed-{} {} {}".format(cnt, ip, port))
+        write_to_file("Connecting to Seed-{} {} {}".format(cnt, ip, port))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, int(port)))
         connected_seeds.append(s)
@@ -360,7 +366,7 @@ def connect_seeds():
                 msg += data
 
             peer_list = pickle.loads(msg)
-            # write_to_file(repr(peer_list))
+            # write_to_file("Received peer list: " + repr(peer_list))
             # print(repr(peer_list))
         except KeyboardInterrupt as k:
             sys.exit(0)
@@ -376,11 +382,12 @@ def connect_seeds():
     if len(rcvd_peer_set) == 1:
         genesis_block = generate_genesis_block()
         print("Genesis Block:", str(genesis_block))
+        write_to_file("Genesis Block:" + str(genesis_block))
         # insert genesis block to database
         db.db_insert(str(genesis_block), 1, 1, my_sv_port)
 
     # print("Received peer list: ", rcvd_peer_set)
-    write_to_file(repr(peer_list))
+    write_to_file("Received peer list: " + repr(peer_list))
 
 # Will find a block such that it's hash is equal to GENESIS_BLOCK_HASH
 def generate_genesis_block():
@@ -402,7 +409,7 @@ def generate_genesis_block():
 
 # Function to write the logs to an output file.
 def write_to_file(line):
-    file.write(line + "\n")
+    file.write(str(datetime.now()) + "> " + line + "\n")
     file.flush()
     os.fsync(file.fileno())
 
@@ -565,6 +572,7 @@ def mine(db):
     node_hash_power = float(sys.argv[1])
     local_lambda = (node_hash_power * global_lambda) / 100.0
     # print("Local lambda: " + str(local_lambda))
+    write_to_file("Local lambda: " + str(local_lambda))
 
     while(True):
         # wait_time = numpy.random.exponential() / lambda
@@ -572,8 +580,7 @@ def mine(db):
         # waitingTime = random.randint(10, 20)
         waitingTime = numpy.random.exponential() / local_lambda
         # print(f"Mining start... It will take {waitingTime}s")
-        
-        # TODO: find some alternative (instead of fetching from DB)
+        write_to_file(f"Mining start... It will take {waitingTime}s")
         latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
         prev_hash = get_hash(latest_block)
 
@@ -584,7 +591,7 @@ def mine(db):
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
             # print(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
-
+            write_to_file(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
             # broadcast the mined block
             hashval = hashlib.sha256(str(block).encode())
             message_list[hashval.hexdigest()] = True
@@ -601,12 +608,14 @@ def mine(db):
                 # 1 hour = 3600 sec
                 if (current_timestamp - block_timestamp) > 3600 or (block_timestamp - current_timestamp) > 3600:
                     # print(f'Discarding invalid block {str(block)}')
+                    write_to_file(f'Discarding invalid block {str(block)}')
                     continue
 
                 is_valid, parent_id, parent_height = db.is_block_present(block_prev_hash, my_sv_port)
                 # valid block
                 if is_valid:
                     # print(f"received valid block {block} for height {parent_height + 1}")
+                    write_to_file(f"received valid block {block} for height {parent_height + 1}")
                     db.db_insert(str(block), parent_id, parent_height + 1, my_sv_port)
                     
                     # broadcast the validated block
@@ -691,7 +700,6 @@ def signal_handler(sig, frame):
     with open('graph_data/graph_fraction_data.txt', 'a') as file:
         file.write(string)
 
-    #TODO: Drop the table.
     exit(0)
 
 signal.signal(signal.SIGTERM, signal_handler)
@@ -699,12 +707,16 @@ signal.signal(signal.SIGTERM, signal_handler)
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
 
+# 2. Open file
+file = open(f"./peer_output/peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
+
+
+
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
 t1.daemon = True
 t1.start()
 
-# 2. Open file
-file = open(f"peer_output_{get_key_for_node(my_ip, my_sv_port)}.txt", "a+")
+
 
 # Connecting to DB
 db = peer_db_conn(my_ip, my_sv_port)
