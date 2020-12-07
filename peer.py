@@ -557,7 +557,7 @@ def peer_connection_refused(ip,port):
             # print(f"handle_dead_node : {ex}")
 
 def mine(db):
-    with open('inter_arrival_time.txt','r') as iat_file:
+    with open('configs/inter_arrival_time.txt','r') as iat_file:
             inter_arrival_time =  iat_file.readline()
 
     global_lambda = 1.0 / float(inter_arrival_time)
@@ -672,7 +672,7 @@ def get_fraction(port):
 
 
 def signal_handler(sig, frame):
-    with open('inter_arrival_time.txt','r') as iat_file:
+    with open('configs/inter_arrival_time.txt','r') as iat_file:
             inter_arrival_time =  iat_file.readline()
     blocks = db.fetch_all_blocks(my_sv_port)
     iat = inter_arrival_time 
@@ -681,13 +681,13 @@ def signal_handler(sig, frame):
     longest_chain_length = max(blocks)
     string = str(iat) +':'+ str(total_blocks) + ':' + str(longest_chain_length) + '\n'
 
-    with open('graph_mining_util_data.txt', 'a') as file:
+    with open('graph_data/graph_mining_util_data.txt', 'a') as file:
         file.write(string)
     
     f = get_fraction(my_sv_port)
     string = str(iat) +':'+ str(f[0]) + ':' + str(f[1]) + '\n'
     
-    with open('graph_fraction_data.txt', 'a') as file:
+    with open('graph_data/graph_fraction_data.txt', 'a') as file:
         file.write(string)
 
     #TODO: Drop the table.

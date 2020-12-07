@@ -7,7 +7,7 @@ Steps to start the network:
 1) cd into the project folder.
 2) Start a seed with the command "python3 seed.py <machine_ip_addr> <port_number>"
 3) Repeat step 2 for the number of seeds you want in your network.
-4) Update the config.csv file in all the machines with the respective ip addresses used to start the seeds in step 2.
+4) Update the configs/config.csv file in all the machines with the respective ip addresses used to start the seeds in step 2.
 5) Start a peer with the command "python3 peer.py"
 6) Repeat step 5 for the number of peers you want.
 

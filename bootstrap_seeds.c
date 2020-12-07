@@ -12,7 +12,7 @@ int is_delim(char, char*);
 void run(char *ip,char* port);
 
 int main(int argc, char** argv) {
-	FILE* fp = fopen("config.csv", "rw");
+	FILE* fp = fopen("configs/config.csv", "rw");
     char* buffer = (char*) malloc(MAX_LEN * sizeof(char));
 	size_t t;
 	int len;

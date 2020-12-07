@@ -20,19 +20,19 @@ class initialise_ip_addresses:
 
     def __init__(self):
 
-        with open('config.csv', 'r') as file:
+        with open('configs/config.csv', 'r') as file:
             reader = csv.reader(file)
             for ip, port in reader:
                 seed_list.append((ip,port))
             self.seed_list = seed_list
         
-        with open('peer_config.csv', 'r') as peer_file:
+        with open('configs/peer_config.csv', 'r') as peer_file:
             reader=csv.reader(peer_file)
             for global_lambda,node_hash_power in reader:
                 self.node_hash_power = node_hash_power
                 self.global_lambda = global_lambda
         
-        with open('inter_arrival_time.txt','r') as iat_file:
+        with open('configs/inter_arrival_time.txt','r') as iat_file:
             self.inter_arrival_time =  iat_file.readline()
 
 

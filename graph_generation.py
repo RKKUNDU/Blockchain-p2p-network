@@ -12,7 +12,7 @@ def plot_mining_util_data():
     x = list()
     y = list()
 
-    with open('graph_mining_util_data.txt','r') as file:
+    with open('graph_data/graph_mining_util_data.txt','r') as file:
         lines = file.readlines()
         for line in lines:
             line = line.rstrip('\n')
@@ -47,7 +47,7 @@ def plot_fraction_data():
     fraction_utilization = dict()
 
     # read from the file
-    with open('graph_fraction_data.txt','r') as file:
+    with open('graph_data/graph_fraction_data.txt','r') as file:
         lines = file.readlines()    
         for line in lines:
             line = line.rstrip('\n')
@@ -96,8 +96,8 @@ plot_mining_util_data()
 
 
 # Clearing the files
-if os.path.exists("graph_mining_util_data.txt"):
-  os.remove("graph_mining_util_data.txt")
+if os.path.exists("graph_data/graph_mining_util_data.txt"):
+  os.remove("graph_data/graph_mining_util_data.txt")
 
-if os.path.exists("graph_fraction_data.txt"):
-    os.remove("graph_fraction_data.txt")
+if os.path.exists("graph_data/graph_fraction_data.txt"):
+    os.remove("graph_data/graph_fraction_data.txt")
