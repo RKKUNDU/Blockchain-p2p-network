@@ -99,6 +99,33 @@ class peer_db_conn:
         blocks = mycursor.fetchall()
         return blocks
 
+    def fetch_block_headers(self, my_sv_port):
+        '''
+            Returns block headers and ignores all other columns like height, parent etc.
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"select block from blocks{my_sv_port}"
+        mycursor.execute(sql)
+        blocks = mycursor.fetchall()
+        return blocks
+
+    def get_all_ports(self):
+        '''
+            Returns the port number all tables in database
+        '''
+        mycursor = self.mydb.cursor()
+        sql = "SELECT table_name FROM information_schema.tables WHERE table_schema=\'blockchain\'"
+        mycursor.execute(sql)
+        tables = mycursor.fetchall()
+        return tables
+    
+    def clear_table(self, my_sv_port):
+        '''
+            clear the table `blocks{my_sv_port}`
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"TRUNCATE blocks{my_sv_port}"
+        mycursor.execute(sql)
 
 def get_hash(block):
     return hashlib.new("sha3_512", str(block).encode()).hexdigest()[-4:]

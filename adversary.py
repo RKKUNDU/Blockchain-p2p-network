@@ -9,13 +9,18 @@ import hashlib, errno, math, random, os, string
 from block import Block
 import queue
 from build_longest_chain import BuildLongestChain
+import signal
+
+if len(sys.argv) != 3:
+    print("Please enter the node hash power and invalid block generation time.")
+    sys.exit(0)
 
 #Inititalising the sets and variables used by this peer node.
 HEADER_SIZE = 10
 BLOCK_SIZE = 16
 LEN = 4096
 
-invalid_block_generation_time = 0.5
+invalid_block_generation_time = float(sys.argv[2])
 
 pending_queue = queue.Queue() # Infinite length queue.
 block_list = dict()
@@ -175,6 +180,8 @@ def handle_conn(peer, cv):
                 cv.release()
 
                 # handle_gossip_msg(peer, msg)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"handle_conn : {ex}")
@@ -195,6 +202,8 @@ def handle_liveness_req(peer, recvd_msg):
         pass
         # if err.errno == errno.ECONNRESET or err.errno == errno.EPIPE :
         #     print(err)
+    except KeyboardInterrupt as k:
+        sys.exit(0)
     except Exception as ex:
         pass
     finally:
@@ -252,6 +261,8 @@ def handle_dead_node(peer):
     for sock in connected_seeds:
         try:
             sock.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"handle_dead_node : {ex}")
@@ -273,6 +284,8 @@ def handle_gossip_msg(peer, msg):
         try:
             inbound_peer.conn_lock.acquire()
             inbound_peer.conn.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"handle_gossip_msg inbound: {ex}")
@@ -289,6 +302,8 @@ def handle_gossip_msg(peer, msg):
         try:
             outbound_peer.conn_lock.acquire()
             outbound_peer.conn.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"handle_gossip_msg outbound: {ex}")
@@ -320,6 +335,8 @@ def connect_seeds():
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         try:
             s.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"connect_seeds: {ex}")
@@ -338,7 +355,8 @@ def connect_seeds():
             peer_list = pickle.loads(msg)
             # write_to_file(repr(peer_list))
             # print(repr(peer_list))
-
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(ex)
@@ -471,6 +489,8 @@ def generate_msgs():
             try:
                 outbound_peer.conn_lock.acquire()
                 outbound_peer.conn.sendall(data)
+            except KeyboardInterrupt as k:
+                sys.exit(0)
             except Exception as ex:
                 pass
                 # print(f"generate_msgs : {ex}")
@@ -481,6 +501,8 @@ def generate_msgs():
             try:
                 inbound_peer.conn_lock.acquire()
                 inbound_peer.conn.sendall(data)
+            except KeyboardInterrupt as k:
+                sys.exit(0)
             except Exception as ex:
                 pass
                 # print(f"generate_msgs : {ex}")
@@ -507,6 +529,8 @@ def check_liveness(peer):
             data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
             peer.conn_lock.acquire()
             peer.conn.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             # print(f"check_liveness : {ex}")
             pass
@@ -523,6 +547,8 @@ def peer_connection_refused(ip,port):
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
         try:
             sock.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"handle_dead_node : {ex}")
@@ -589,6 +615,8 @@ def broadcast_block(msg):
         try:
             outbound_peer.conn_lock.acquire()
             outbound_peer.conn.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"broadcast_block : {ex}")
@@ -599,6 +627,8 @@ def broadcast_block(msg):
         try:
             inbound_peer.conn_lock.acquire()
             inbound_peer.conn.sendall(data)
+        except KeyboardInterrupt as k:
+            sys.exit(0)
         except Exception as ex:
             pass
             # print(f"broadcast_block : {ex}")
@@ -623,6 +653,8 @@ def flood_invalid_block():
             try:
                 outbound_peer.conn_lock.acquire()
                 outbound_peer.conn.sendall(data)
+            except KeyboardInterrupt as k:
+                sys.exit(0)
             except Exception as ex:
                 pass
             finally:
@@ -633,10 +665,59 @@ def get_hash(block):
     return hashlib.new("sha3_512", str(block).encode()).hexdigest()[-4:]
 
 
+# Return the fraction of blocks that are adversary's in the longest chain at node with port no. 'port'
+def get_fraction(port):
+    # db = peer_db_conn('127.0.0.1', port)
+    block_headers = db.fetch_block_headers(port)
+
+    q = queue.Queue()
+
+    for block in block_headers:
+        q.put(block[0])
+
+    build_helper = BuildLongestChain()
+
+    longest_chain = build_helper.get_longest_chain(q)
+
+    total = float(len(longest_chain))
+    adv_count = 0.0
+
+    for block_tuple in longest_chain:
+        if block_tuple['block'][4] == 'A':
+            adv_count += 1
+
+    return (total, adv_count / total)
+
+
+def signal_handler(sig, frame):
+    with open('inter_arrival_time.txt','r') as iat_file:
+            inter_arrival_time =  iat_file.readline()
+    blocks = db.fetch_all_blocks(my_sv_port)
+    iat = inter_arrival_time 
+    blocks = [block[4] for block in blocks]
+    total_blocks = len(blocks)
+    longest_chain_length = max(blocks)
+    string = str(iat) +':'+ str(total_blocks) + ':' + str(longest_chain_length) + '\n'
+
+    with open('graph_mining_util_data.txt', 'a') as file:
+        file.write(string)
+    
+    f = get_fraction(my_sv_port)
+    string = str(iat) +':'+ str(f[0]) + ':' + str(f[1]) + '\n'
+    
+    with open('graph_fraction_data.txt', 'a') as file:
+        file.write(string)
+
+    #TODO: Drop the table.
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, signal_handler)
+
 # 1. Setup listening (server)
 s, my_ip, my_sv_port = bind_socket()
 
 t1 = threading.Thread(target=start_listening, args=[s], name='t1')
+t1.daemon = True
 t1.start()
 
 # 2. Open file
