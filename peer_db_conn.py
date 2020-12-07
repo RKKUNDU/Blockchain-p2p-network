@@ -3,9 +3,9 @@ import hashlib
 
 class peer_db_conn:
 
-    def __init__(self, my_ip, my_sv_port):
+    def __init__(self, my_ip, my_sv_port=-1):
         database_not_exists=1
-        self.mydb = mysql.connector.connect(host="localhost",user="root",password="12345678")
+        self.mydb = mysql.connector.connect(host="localhost",user="root",password="")
         mycursor = self.mydb.cursor()
         mycursor.execute("show databases")
         for x in mycursor:
@@ -16,8 +16,9 @@ class peer_db_conn:
         if database_not_exists:
             mycursor.execute("CREATE DATABASE blockchain")
 
-        self.mydb = mysql.connector.connect(host="localhost",user="root", password="12345678",database="blockchain")
-        self.create_table(my_ip, my_sv_port)
+        self.mydb = mysql.connector.connect(host="localhost",user="root", password="",database="blockchain")
+        if my_sv_port != -1:
+            self.create_table(my_ip, my_sv_port)
         print('Connected to \'blockchain\' database...')
     
     def create_table(self, my_ip, my_sv_port):
