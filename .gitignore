@@ -1,6 +1,6 @@
-configs/config.csv
-configs/peer_config.csv
-configs/inter_arrival_time.txt
+# configs/config.csv
+# configs/peer_config.csv
+# configs/inter_arrival_time.txt
 *.out
 *.idea/
 __pycache__/
