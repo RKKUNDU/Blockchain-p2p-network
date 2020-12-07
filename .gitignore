@@ -13,5 +13,5 @@ peer_output*
 seed_output*
 .vscode/
 test-output/*.gv
-graph_data/graph_fraction_data.txt
-graph_data/graph_mining_util_data.txt
+# graph_data/graph_fraction_data.txt
+# graph_data/graph_mining_util_data.txt
