@@ -88,7 +88,7 @@ def start_listening(s):
             peer_key = get_key_for_node(peer_sv_ip, peer_sv_port)
             peer = Peer(conn, peer_sv_ip, peer_sv_port)
             inbound_peers[peer_key] = peer
-            print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
+            # print(f"Got Connection From IP:{peer.remote_ip}: PORT: {peer.remote_port} whose server: {peer.sv_ip} {peer.sv_port}")
             
             # reply with the recent block (GET from DB)
             latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
@@ -333,7 +333,7 @@ def connect_seeds():
     for seed in seed_list:
         cnt += 1
         ip, port = seed
-        print("Connecting to Seed-{} {} {}".format(cnt, ip, port))
+        # print("Connecting to Seed-{} {} {}".format(cnt, ip, port))
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((ip, int(port)))
         connected_seeds.append(s)
@@ -379,13 +379,14 @@ def connect_seeds():
         # insert genesis block to database
         db.db_insert(str(genesis_block), 1, 1, my_sv_port)
 
-    print("Received peer list: ", rcvd_peer_set)
+    # print("Received peer list: ", rcvd_peer_set)
     write_to_file(repr(peer_list))
 
 # Will find a block such that it's hash is equal to GENESIS_BLOCK_HASH
 def generate_genesis_block():
     hex_alpha = "abcdef"
 
+    return "dabb601607104039"
     while True:
         # Generate random merkel root and prev hash
         random_mr = ''.join(random.choices(string.ascii_letters + string.digits, k = 2))
@@ -418,7 +419,7 @@ def connect_peers(cv):
         # IF PEER IS THIS PROCESS ITSELF
         if ip == my_ip and port == my_sv_port:
             continue
-        print(f"PEER-{peer_cnt} : IP {ip}, PORT {port}")
+        # print(f"PEER-{peer_cnt} : IP {ip}, PORT {port}")
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             data = my_ip+":"+str(my_sv_port)
@@ -563,14 +564,14 @@ def mine(db):
     global_lambda = 1.0 / float(inter_arrival_time)
     node_hash_power = float(sys.argv[1])
     local_lambda = (node_hash_power * global_lambda) / 100.0
-    print("Local lambda: " + str(local_lambda))
+    # print("Local lambda: " + str(local_lambda))
 
     while(True):
         # wait_time = numpy.random.exponential() / lambda
         
         # waitingTime = random.randint(10, 20)
         waitingTime = numpy.random.exponential() / local_lambda
-        print(f"Mining start... It will take {waitingTime}s")
+        # print(f"Mining start... It will take {waitingTime}s")
         
         # TODO: find some alternative (instead of fetching from DB)
         latest_block, latest_block_id, latest_block_height = db.db_fetch_latest_block(my_sv_port)
@@ -582,7 +583,7 @@ def mine(db):
         if timeout:
             block = Block(prev_hash, MERKEL_ROOT, str(int(time.time())))
             db.db_insert(str(block), latest_block_id, latest_block_height + 1, my_sv_port)
-            print(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
+            # print(f"Mining took {waitingTime}s! Mined the block {block} at height {latest_block_height + 1}")
 
             # broadcast the mined block
             hashval = hashlib.sha256(str(block).encode())
@@ -599,13 +600,13 @@ def mine(db):
                 # block was generated within 1 hour (plus or minus) of current time
                 # 1 hour = 3600 sec
                 if (current_timestamp - block_timestamp) > 3600 or (block_timestamp - current_timestamp) > 3600:
-                    print(f'Discarding invalid block {str(block)}')
+                    # print(f'Discarding invalid block {str(block)}')
                     continue
 
                 is_valid, parent_id, parent_height = db.is_block_present(block_prev_hash, my_sv_port)
                 # valid block
                 if is_valid:
-                    print(f"received valid block {block} for height {parent_height + 1}")
+                    # print(f"received valid block {block} for height {parent_height + 1}")
                     db.db_insert(str(block), parent_id, parent_height + 1, my_sv_port)
                     
                     # broadcast the validated block
@@ -730,5 +731,5 @@ build_helper.insert_longest_chain_to_db(longest_chain, db, my_sv_port)
 mine(db)
 
 t1.join()
-print("Test")
+# print("Test")
 file.close()

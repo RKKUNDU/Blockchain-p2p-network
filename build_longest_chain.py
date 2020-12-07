@@ -111,7 +111,7 @@ class BuildLongestChain:
             if block_no == 1:
                 parent_id = 1
 
-            print(f"Block {block_no}: {blocks_in_longest_chain[i]}")
+            # print(f"Block {block_no}: {blocks_in_longest_chain[i]}")
             db.db_insert(blocks_in_longest_chain[i], parent_id, height, my_sv_port)
 
     def print_longest_chain(self, blocks):
