@@ -2,7 +2,7 @@
 # THIS IS A PEER NODE (ADVERSARY) WHOSE IP, PORT NO IS NOT FIXED.
 
 from datetime import datetime
-import pickle, socket, threading, time
+import pickle, socket, threading, time, sys, numpy
 from initialise_ip_addresses import initialise_ip_addresses
 from peer_db_conn import peer_db_conn
 import hashlib, errno, math, random, os, string
@@ -528,9 +528,16 @@ def peer_connection_refused(ip,port):
             # print(f"handle_dead_node : {ex}")
 
 def mine(db):
+    with open('inter_arrival_time.txt','r') as iat_file:
+            inter_arrival_time =  iat_file.readline()
+
+    global_lambda = 1.0 / float(inter_arrival_time)
+    node_hash_power = float(sys.argv[1])
+    local_lambda = (node_hash_power * global_lambda) / 100.0
+    print("Local lambda: " + str(local_lambda))
+
     while(True):
-        #TODO: add exp var
-        waitingTime = random.randint(10, 20)
+        waitingTime = numpy.random.exponential() / local_lambda
         print(f"Mining start... It will take {waitingTime}s")
         
         # TODO: find some alternative (instead of fetching from DB)
@@ -609,6 +616,8 @@ def flood_invalid_block():
         data = pickle.dumps(str(invalid_block))
 
         data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
+
+        print(f'Sending invalid block {str(invalid_block)} to nodes')
         
         for outbound_peer in outbound_peers.values():
             try:
@@ -652,7 +661,11 @@ print(node_flooded)
 connect_peers(cv, node_flooded)
 
 # 5. Build longest chain
-longest_chain = BuildLongestChain(pending_queue, db, my_sv_port)
+build_helper = BuildLongestChain()
+longest_chain = build_helper.get_longest_chain(pending_queue)
+
+# 6. Insert longest chain to database
+build_helper.insert_longest_chain_to_db(longest_chain, db, my_sv_port)
 
 # starts mining
 threading.Thread(target=mine, args=[db]).start()
