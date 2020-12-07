@@ -3,7 +3,7 @@ import hashlib
 
 class peer_db_conn:
 
-    def __init__(self, my_ip, my_sv_port):
+    def __init__(self, my_ip, my_sv_port=-1):
         database_not_exists=1
         self.mydb = mysql.connector.connect(host="localhost",user="root",password="")
         mycursor = self.mydb.cursor()
@@ -17,7 +17,8 @@ class peer_db_conn:
             mycursor.execute("CREATE DATABASE blockchain")
 
         self.mydb = mysql.connector.connect(host="localhost",user="root", password="",database="blockchain")
-        self.create_table(my_ip, my_sv_port)
+        if my_sv_port != -1:
+            self.create_table(my_ip, my_sv_port)
         print('Connected to \'blockchain\' database...')
     
     def create_table(self, my_ip, my_sv_port):
@@ -88,7 +89,44 @@ class peer_db_conn:
             return True, parent_block[0][0], parent_block[0][1]
         
         return False, None, None
+    
+    def fetch_all_blocks(self, my_sv_port):
+        '''
+            Fetches all the blocks.
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"select * from blocks{my_sv_port}"
+        mycursor.execute(sql)
+        blocks = mycursor.fetchall()
+        return blocks
 
+    def fetch_block_headers(self, my_sv_port):
+        '''
+            Returns block headers and ignores all other columns like height, parent etc.
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"select block from blocks{my_sv_port}"
+        mycursor.execute(sql)
+        blocks = mycursor.fetchall()
+        return blocks
+
+    def get_all_ports(self):
+        '''
+            Returns the port number all tables in database
+        '''
+        mycursor = self.mydb.cursor()
+        sql = "SELECT table_name FROM information_schema.tables WHERE table_schema=\'blockchain\'"
+        mycursor.execute(sql)
+        tables = mycursor.fetchall()
+        return tables
+    
+    def clear_table(self, my_sv_port):
+        '''
+            clear the table `blocks{my_sv_port}`
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"TRUNCATE blocks{my_sv_port}"
+        mycursor.execute(sql)
 
 def get_hash(block):
     return hashlib.new("sha3_512", str(block).encode()).hexdigest()[-4:]

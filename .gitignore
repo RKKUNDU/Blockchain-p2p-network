@@ -10,3 +10,6 @@ time.py
 peer_output*
 seed_output*
 .vscode/
+test-output/*.gv
+graph_fraction_data.txt
+graph_mining_util_data.txt

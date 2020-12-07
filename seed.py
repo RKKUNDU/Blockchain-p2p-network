@@ -45,6 +45,8 @@ def check_if_node_alive(ip, port):
                 data = pickle.dumps("test")
                 data = bytes(f'{len(data):<{HEADER_SIZE}}','utf-8') + data
                 conn.sendall(data)
+            except KeyboardInterrupt as k:
+                sys.exit(0)
             except Exception as ex:
                 # print(f"Testing if node alive: count ={i+1}")
                 time.sleep(2)
@@ -72,6 +74,8 @@ def dead_node_message(msg):
                     peer_list.remove(peer)
                     peer_map.pop(key)
                     lock.release()
+                except KeyboardInterrupt as k:
+                    sys.exit(0)
                 except Exception as identifier:
                     pass
                 break
@@ -171,6 +175,7 @@ file = open(f"seed_output_{get_key_for_node(myIP, myPort)}", "a+")
 
 #Starts the thread which bootstraps the seed.
 t1 = threading.Thread(target=start_seed_node, name='t1')
+t1.daemon = True
 t1.start()
 t1.join()
 file.close()
