@@ -5,7 +5,7 @@ class peer_db_conn:
 
     def __init__(self, my_ip, my_sv_port):
         database_not_exists=1
-        self.mydb = mysql.connector.connect(host="localhost",user="root",password="")
+        self.mydb = mysql.connector.connect(host="localhost",user="root",password="12345678")
         mycursor = self.mydb.cursor()
         mycursor.execute("show databases")
         for x in mycursor:
@@ -16,7 +16,7 @@ class peer_db_conn:
         if database_not_exists:
             mycursor.execute("CREATE DATABASE blockchain")
 
-        self.mydb = mysql.connector.connect(host="localhost",user="root", password="",database="blockchain")
+        self.mydb = mysql.connector.connect(host="localhost",user="root", password="12345678",database="blockchain")
         self.create_table(my_ip, my_sv_port)
         print('Connected to \'blockchain\' database...')
     
@@ -88,6 +88,16 @@ class peer_db_conn:
             return True, parent_block[0][0], parent_block[0][1]
         
         return False, None, None
+    
+    def fetch_all_blocks(self, my_sv_port):
+        '''
+            Fetches all the blocks.
+        '''
+        mycursor = self.mydb.cursor()
+        sql = f"select * from blocks{my_sv_port}"
+        mycursor.execute(sql)
+        blocks = mycursor.fetchall()
+        return blocks
 
 
 def get_hash(block):
