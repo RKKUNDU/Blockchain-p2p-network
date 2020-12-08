@@ -63,3 +63,9 @@ def write_graph_data():
     for table in tables:
         write_graph_data_for_one_peer(db, int(table[0][6:]))
 
+
+write_graph_data()
+
+# drop the database
+db = peer_db_conn('127.0.0.1')
+db.drop_database()
