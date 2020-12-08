@@ -1,6 +1,6 @@
-# configs/config.csv
-# configs/peer_config.csv
-# configs/inter_arrival_time.txt
+configs/config.csv
+configs/peer_config.csv
+configs/inter_arrival_time.txt
 *.out
 *.idea/
 __pycache__/
@@ -18,3 +18,5 @@ graph_data/graph_mining_util_data.txt
 # peer_output/*
 # graph_data/graph_fraction_data.txt
 # graph_data/graph_mining_util_data.txt
+graph_data*/*
+peer_log_*/*
