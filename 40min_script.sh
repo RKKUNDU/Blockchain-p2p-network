@@ -5,12 +5,17 @@ SEED_PORT='12345'
 NODE_HASH_POWER=6.7
 ADVERSARY_HASH_POWER=33
 EXPERIMENT_TIME=600 #600 sec or 10 min
+<<<<<<< HEAD
+=======
+# FLOOD_PERCENTAGE=10
+>>>>>>> eb573b8bcd105bd1440bb7dc90007a9835569a82
 
+flood_list=(10 20 30)
 
 flood_list=(20 30)
 
 iat_list=(2 4 6 8)
-iit=0.5
+iit=1
 
 for FLOOD_PERCENTAGE in ${flood_list[@]}
 do
