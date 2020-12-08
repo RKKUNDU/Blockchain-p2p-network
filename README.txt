@@ -64,7 +64,7 @@ B. Graphs:
         1. inter-invalid block generation time = 0.5s
         2. percentage of nodes to be flooded (by adversary) = 10%
 
-    For each plot we run the network (with 1 seed, 10 peer node, 1 adversary node) with the inter-arrival time {2s, 4s, 6s, 8s}. We have several configuration for the plots. Those configurations are combination of flooding percentage {10%, 20%, 30%} and inter-invalid block generation time {0.5s, 1.0s}
+    For each plot we run the network (with 1 seed, 10 peer node each having 6.7% hashing power, 1 adversary node having 33% hashing power) with the inter-arrival time {2s, 4s, 6s, 8s}. We have several configuration for the plots. Those configurations are combination of flooding percentage {10%, 20%, 30%} and inter-invalid block generation time {0.5s, 1.0s}
 
 C. Blockchain Tree:
     1) blockchain_tree/node* (eg. blockchain_tree/node39929.gv.pdf)
