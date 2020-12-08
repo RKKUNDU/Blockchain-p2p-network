@@ -5,3 +5,4 @@ clean:
 hard_clean:
 	$(RM) graph_data/* 
 	$(RM) -r peer_log_*/
+	$(RM) test-output/*.png

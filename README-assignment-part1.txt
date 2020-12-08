@@ -3,6 +3,8 @@ Project Contributors:
 2) Sumit Thorat - 203050087
 3) Pramod S Rao - 20305R007
 
+Specific to project part-1:
+
 Steps to start the network:
 1) cd into the project folder.
 2) Start a seed with the command "python3 seed.py <machine_ip_addr> <port_number>"

@@ -23,7 +23,7 @@ def plot_mining_util_data():
 			arr = line.split(':')
 			arr = [float(item) for item in arr]
 			key = arr[0]
-			avg = arr[1]/arr[2]
+			avg = arr[2]/arr[1]
 			if key in average_utilization.keys():
 				average_utilization[key].append(avg)
 			else:
@@ -36,7 +36,7 @@ def plot_mining_util_data():
 
 	plt.plot(x, y)
 	plt.xlabel('Inter-arrival times')
-	plt.ylabel('Fraction of main chain')
+	plt.ylabel('Avg Utilization')
 	plt.title('Inter-arrival times vs Average Utilization')
 
 	plt.savefig(f'./test-output/avg_util_{sys.argv[1]}s_{sys.argv[2]}%.png')
