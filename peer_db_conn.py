@@ -96,7 +96,7 @@ class peer_db_conn:
             Fetches all the blocks.
         '''
         mycursor = self.mydb.cursor()
-        sql = f"select * from blocks{my_sv_port}"
+        sql = f"select id, block, hash, parent_id, height from blocks{my_sv_port}"
         mycursor.execute(sql)
         blocks = mycursor.fetchall()
         return blocks
@@ -127,6 +127,11 @@ class peer_db_conn:
         '''
         mycursor = self.mydb.cursor()
         sql = f"TRUNCATE blocks{my_sv_port}"
+        mycursor.execute(sql)
+
+    def drop_database(self):
+        mycursor = self.mydb.cursor()
+        sql = f"DROP DATABASE blockchain"
         mycursor.execute(sql)
 
 def get_hash(block):

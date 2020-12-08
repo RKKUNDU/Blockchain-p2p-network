@@ -1,6 +1,7 @@
 import os
 import time
 from datetime import datetime
+from write_graph_data import write_graph_data
 
 num_of_peers = 10
 num_of_adversaries = 1
@@ -8,7 +9,7 @@ seed_ip = '127.0.0.1'
 seed_port = '12345'
 node_hash_power = 6.7
 adversary_hash_power = 33
-experiment_time = 20
+experiment_time = 10
 flood_percentage = 10 
 
 
@@ -46,7 +47,13 @@ for iit in iit_list:
         os.system("killall -15 python3")
         time.sleep(5)
         os.system("killall -9 python3")
-        time.sleep(20)
+        time.sleep(10)
+
+        write_graph_data()
+
+        # drop the database
+        db = peer_db_conn('127.0.0.1')
+        db.drop_database()
 
         output_folder = "peer_log_iat" + str(iat) + "_iit" + str(iit) + "_fp" + str(flood_percentage)
         os.system("mkdir -p " + output_folder)

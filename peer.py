@@ -682,23 +682,23 @@ def get_fraction(port):
 
 
 def signal_handler(sig, frame):
-    with open('configs/inter_arrival_time.txt','r') as iat_file:
-            inter_arrival_time =  iat_file.readline()
-    blocks = db.fetch_all_blocks(my_sv_port)
-    iat = inter_arrival_time 
-    blocks = [block[4] for block in blocks]
-    total_blocks = len(blocks)
-    longest_chain_length = max(blocks)
-    string = str(iat) +':'+ str(total_blocks) + ':' + str(longest_chain_length) + '\n'
+    # with open('configs/inter_arrival_time.txt','r') as iat_file:
+    #         inter_arrival_time =  iat_file.readline()
+    # blocks = db.fetch_all_blocks(my_sv_port)
+    # iat = inter_arrival_time 
+    # blocks = [block[4] for block in blocks]
+    # total_blocks = len(blocks)
+    # longest_chain_length = max(blocks)
+    # string = str(iat) +':'+ str(total_blocks) + ':' + str(longest_chain_length) + '\n'
 
-    with open('graph_data/graph_mining_util_data.txt', 'a') as file:
-        file.write(string)
+    # with open('graph_data/graph_mining_util_data.txt', 'a') as file:
+    #     file.write(string)
     
-    f = get_fraction(my_sv_port)
-    string = str(iat) +':'+ str(f[0]) + ':' + str(f[1]) + '\n'
+    # f = get_fraction(my_sv_port)
+    # string = str(iat) +':'+ str(f[0]) + ':' + str(f[1]) + '\n'
     
-    with open('graph_data/graph_fraction_data.txt', 'a') as file:
-        file.write(string)
+    # with open('graph_data/graph_fraction_data.txt', 'a') as file:
+    #     file.write(string)
 
     exit(0)
 
