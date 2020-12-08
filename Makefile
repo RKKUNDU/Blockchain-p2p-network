@@ -3,4 +3,5 @@ clean:
 	$(RM) -r __pycache__
 
 hard_clean:
-	$(RM) graph_data/*
+	$(RM) graph_data/* 
+	$(RM) -r peer_log_*/

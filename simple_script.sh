@@ -1,4 +1,4 @@
-NUM_OF_PEERS=10
+NUM_OF_PEERS=2
 NUM_OF_ADVERSARY=1
 SEED_IP='127.0.0.1'
 SEED_PORT='12345'
@@ -9,16 +9,17 @@ FLOOD_PERCENTAGE=10
 
 python3 seed.py $SEED_IP $SEED_PORT &
 
-iat=
-iit=
+iat=2
+iit=0.5
+
+echo -n $iat > configs/inter_arrival_time.txt
 
 i=1
 # run $NUM_OF_PEERS peers
 while [[ $i -le $NUM_OF_PEERS ]]
 do
-    # echo "python3 dummy.py ${NODE_HASH_POWER}"
     python3 peer.py ${NODE_HASH_POWER} &
-    sleep 4
+    sleep 2
 
     ((i++))
 done
@@ -27,7 +28,6 @@ i=1
 # run $NUM_OF_PEERS adversaries
 while [[ $i -le $NUM_OF_ADVERSARY ]]
 do
-    # echo "python3 dummy.py ${ADVERSARY_HASH_POWER} ${iit}"
     python3 adversary.py ${ADVERSARY_HASH_POWER} ${iit} ${FLOOD_PERCENTAGE} &
     # sleep 2
 
@@ -42,8 +42,12 @@ sleep $EXPERIMENT_TIME
 killall -15 python3
 sleep 5
 killall -9 python3
-sleep 10
+sleep 5
 
-python3 write_graph_data $iit $iat
+python3 write_graph_data.py $iit $FLOOD_PERCENTAGE
+
+output_folder="peer_log_iat${iat}_iit${iit}_fp${FLOOD_PERCENTAGE}"
+mkdir -p $output_folder
+mv peer_output/* $output_folder
 
 echo "Experiment complete"

@@ -1,6 +1,7 @@
 from peer_db_conn import peer_db_conn
 from build_longest_chain import BuildLongestChain
 import queue
+import sys
 
 def get_fraction(db, port):
     # db = peer_db_conn('127.0.0.1', port)
@@ -48,12 +49,12 @@ def write_graph_data_for_one_peer(db, my_sv_port):
 
         longest_chain_length, total_blocks = get_util(db, my_sv_port)
         string = str(iat) +':'+ str(total_blocks) + ':' + str(longest_chain_length) + '\n'
-        with open('graph_data/graph_mining_util_data.txt', 'a') as file:
+        with open(f'graph_data/graph_mining_util_data_iit{iit}_fp{fp}.txt', 'a') as file:
             file.write(string)
         
         f = get_fraction(db, my_sv_port)
         string = str(iat) +':'+ str(f[0]) + ':' + str(f[1]) + '\n'
-        with open('graph_data/graph_fraction_data.txt', 'a') as file:
+        with open(f'graph_data/graph_fraction_data_iit{iit}_fp{fp}.txt', 'a') as file:
             file.write(string)
 
 
@@ -63,6 +64,13 @@ def write_graph_data():
     for table in tables:
         write_graph_data_for_one_peer(db, int(table[0][6:]))
 
+
+if len(sys.argv) != 3:
+    print("Enter iit and fp")
+    exit(0)
+
+iit = sys.argv[1]
+fp = sys.argv[2]
 
 write_graph_data()
 

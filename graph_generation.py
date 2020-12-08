@@ -16,7 +16,7 @@ def plot_mining_util_data():
 	x = list()
 	y = list()
 
-	with open('graph_data/graph_mining_util_data.txt','r') as file:
+	with open(f'graph_data/graph_mining_util_data_iit{iit}_fp{fp}.txt','r') as file:
 		lines = file.readlines()
 		for line in lines:
 			line = line.rstrip('\n')
@@ -51,7 +51,7 @@ def plot_fraction_data():
     fraction_utilization = dict()
 
     # read from the file
-    with open('graph_data/graph_fraction_data.txt','r') as file:
+    with open(f'graph_data/graph_fraction_data_iit{iit}_fp{fp}.txt','r') as file:
         lines = file.readlines()    
         for line in lines:
             line = line.rstrip('\n')
@@ -94,14 +94,21 @@ def plot_fraction_data():
             
 
 
+if len(sys.argv) != 3:
+    print("Enter iit and fp")
+    exit(0)
+
+iit = sys.argv[1]
+fp = sys.argv[2]
+
 plot_mining_util_data()
 plot_fraction_data()
 
 
 
 # Clearing the files
-if os.path.exists("graph_data/graph_mining_util_data.txt"):
-	os.remove("graph_data/graph_mining_util_data.txt")
+# if os.path.exists("graph_data/graph_mining_util_data.txt"):
+# 	os.remove("graph_data/graph_mining_util_data.txt")
 
-if os.path.exists("graph_data/graph_fraction_data.txt"):
-	os.remove("graph_data/graph_fraction_data.txt")
+# if os.path.exists("graph_data/graph_fraction_data.txt"):
+# 	os.remove("graph_data/graph_fraction_data.txt")
