@@ -747,7 +747,7 @@ connect_seeds()
 cv = threading.Condition()
 
 percentage = sys.argv[3]# input("Enter % of nodes to be flooded: ")
-node_flooded = math.ceil(len(rcvd_peer_set) * int(percentage))
+node_flooded = math.ceil(len(rcvd_peer_set) * int(percentage) / 100)
 # print(node_flooded)
 
 # 4. Connect to 4 distinct peers
